@@ -52,17 +52,19 @@ export function GeneralSettings() {
           setRtpValue(parseInt(data.data.rtpValue) || 0)
         } else {
           toast({
-            title: "Erro",
-            description: "Falha ao carregar configurações",
+            title: "❌ Erro ao carregar configurações",
+            description: "Falha ao carregar as configurações do servidor",
             variant: "destructive",
+            duration: 5000,
           })
         }
       } catch (error) {
         console.error("Error loading settings:", error)
         toast({
-          title: "Erro",
-          description: "Falha ao carregar configurações",
+          title: "❌ Erro de conexão",
+          description: "Não foi possível conectar ao servidor para carregar as configurações",
           variant: "destructive",
+          duration: 5000,
         })
       } finally {
         setIsLoading(false)
@@ -73,27 +75,31 @@ export function GeneralSettings() {
   }, [toast])
 
   const handleRtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const value = e.target.value;
-  
-  // Permite campo vazio ou números válidos
-  if (value === '') {
-    setRtpValue(0);
-    return;
-  }
-  
-  const numValue = parseInt(value);
-  
-  // Verifica se é um número válido entre 0 e 100
-  if (!isNaN(numValue)) {
-    if (numValue >= 0 && numValue <= 100) {
-      setRtpValue(numValue);
+    const value = e.target.value;
+    
+    if (value === '') {
+      setRtpValue(0);
+      return;
     }
-  }
-};
-
+    
+    const numValue = parseInt(value);
+    
+    if (!isNaN(numValue)) {
+      if (numValue >= 0 && numValue <= 100) {
+        setRtpValue(numValue);
+      } else {
+        toast({
+          title: "Valor inválido",
+          description: "O RTP deve estar entre 0 e 100",
+          variant: "destructive",
+          duration: 3000,
+        })
+      }
+    }
+  };
 
   const handleSaveConfig = async () => {
-    setIsSaving(true)
+    setIsSaving(true);
     try {
       const response = await fetch('/api/admin/settings', {
         method: 'POST',
@@ -108,39 +114,64 @@ export function GeneralSettings() {
             rtpValue
           }
         })
-      })
+      });
       
-      const data = await response.json()
+      const data = await response.json();
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          toast({
+            title: "❌ Não autorizado",
+            description: "Sua sessão pode ter expirado. Faça login novamente.",
+            variant: "destructive",
+            duration: 5000,
+          });
+          return;
+        }
+        
+        if (response.status === 500) {
+          toast({
+            title: "❌ Erro no servidor",
+            description: "O servidor encontrou um erro interno. Tente novamente mais tarde.",
+            variant: "destructive",
+            duration: 5000,
+          });
+          return;
+        }
+      }
       
       if (data.success) {
         toast({
-          title: "Sucesso",
-          description: "Configurações salvas com sucesso!",
-        })
+          title: "✅ Configurações salvas com sucesso",
+          description: "Todas as alterações foram armazenadas no sistema.",
+          className: "bg-green-600 text-white border-0",
+          duration: 3000,
+        });
       } else {
         toast({
-          title: "Erro",
-          description: data.error || "Falha ao salvar configurações",
+          title: "❌ Erro ao salvar configurações",
+          description: data.error || "Ocorreu um erro desconhecido ao tentar salvar.",
           variant: "destructive",
-        })
+          duration: 5000,
+        });
       }
     } catch (error) {
-      console.error("Error saving settings:", error)
+      console.error("Error saving settings:", error);
       toast({
-        title: "Erro",
-        description: "Falha ao salvar configurações",
+        title: "❌ Erro de conexão",
+        description: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",
         variant: "destructive",
-      })
+        duration: 5000,
+      });
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
+  };
 
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
       try {
-        // Criar FormData para upload
         const formData = new FormData()
         formData.append('file', file)
         formData.append('type', 'logo')
@@ -155,22 +186,26 @@ export function GeneralSettings() {
         if (data.success) {
           setSiteConfig({ ...siteConfig, logo: data.fileUrl })
           toast({
-            title: "Sucesso",
-            description: "Logo atualizado com sucesso!",
+            title: "✅ Logo atualizado",
+            description: "O logo do site foi atualizado com sucesso!",
+            className: "bg-green-600 text-white border-0",
+            duration: 3000,
           })
         } else {
           toast({
-            title: "Erro",
+            title: "❌ Falha no upload",
             description: data.error || "Falha ao fazer upload do logo",
             variant: "destructive",
+            duration: 5000,
           })
         }
       } catch (error) {
         console.error("Error uploading logo:", error)
         toast({
-          title: "Erro",
-          description: "Falha ao fazer upload do logo",
+          title: "❌ Erro de conexão",
+          description: "Falha ao conectar ao servidor para upload do logo",
           variant: "destructive",
+          duration: 5000,
         })
       }
     }
@@ -180,7 +215,6 @@ export function GeneralSettings() {
     const file = event.target.files?.[0]
     if (file) {
       try {
-        // Criar FormData para upload
         const formData = new FormData()
         formData.append('file', file)
         formData.append('type', 'favicon')
@@ -195,22 +229,26 @@ export function GeneralSettings() {
         if (data.success) {
           setSiteConfig({ ...siteConfig, favicon: data.fileUrl })
           toast({
-            title: "Sucesso",
-            description: "Favicon atualizado com sucesso!",
+            title: "✅ Favicon atualizado",
+            description: "O favicon do site foi atualizado com sucesso!",
+            className: "bg-green-600 text-white border-0",
+            duration: 3000,
           })
         } else {
           toast({
-            title: "Erro",
+            title: "❌ Falha no upload",
             description: data.error || "Falha ao fazer upload do favicon",
             variant: "destructive",
+            duration: 5000,
           })
         }
       } catch (error) {
         console.error("Error uploading favicon:", error)
         toast({
-          title: "Erro",
-          description: "Falha ao fazer upload do favicon",
+          title: "❌ Erro de conexão",
+          description: "Falha ao conectar ao servidor para upload do favicon",
           variant: "destructive",
+          duration: 5000,
         })
       }
     }
@@ -224,7 +262,6 @@ export function GeneralSettings() {
     )
   }
 
-
   return (
     <div className="space-y-6">
       <div>
@@ -232,7 +269,7 @@ export function GeneralSettings() {
         <p className="text-gray-400">Configure informações básicas do site</p>
       </div>
 
-           <Card className="bg-gray-800 border-gray-700">
+      <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
           <CardTitle className="text-white">
             Configurações de Jogo
@@ -244,14 +281,14 @@ export function GeneralSettings() {
               <label className="block text-gray-300 text-sm font-medium mb-2">
                 Valor do RTP (0-100)
               </label>
-<Input
-    type="number"
-    value={rtpValue || ''}
-    onChange={handleRtpChange}
-    min="0"
-    max="100"
-    className="bg-gray-700 border-gray-600 text-white"
-  />
+              <Input
+                type="number"
+                value={rtpValue || ''}
+                onChange={handleRtpChange}
+                min="0"
+                max="100"
+                className="bg-gray-700 border-gray-600 text-white"
+              />
               <p className="text-xs text-gray-400 mt-1">
                 O RTP (Return to Player) determina a porcentagem de retorno aos jogadores.
               </p>
@@ -343,7 +380,7 @@ export function GeneralSettings() {
                 <div className="flex items-center justify-center w-full h-32 bg-gray-700 rounded-lg border-2 border-dashed border-gray-600">
                   {siteConfig.logo ? (
                     <img
-                      src={siteConfig.logo || "/placeholder.svg"}
+                      src={siteConfig.logo}
                       alt="Logo atual"
                       className="max-h-28 max-w-full object-contain"
                     />
@@ -375,7 +412,7 @@ export function GeneralSettings() {
                 <div className="flex items-center justify-center w-full h-32 bg-gray-700 rounded-lg border-2 border-dashed border-gray-600">
                   {siteConfig.favicon ? (
                     <img
-                      src={siteConfig.favicon || "/placeholder.svg"}
+                      src={siteConfig.favicon}
                       alt="Favicon atual"
                       className="w-8 h-8 object-contain"
                     />
@@ -477,9 +514,25 @@ export function GeneralSettings() {
 
       {/* Botão de Salvar */}
       <div className="flex justify-end">
-        <Button onClick={handleSaveConfig} className="bg-green-600 hover:bg-green-700 text-white px-8">
-          <Save className="w-4 h-4 mr-2" />
-          Salvar Todas as Configurações
+        <Button 
+          onClick={handleSaveConfig} 
+          className="bg-green-600 hover:bg-green-700 text-white px-8"
+          disabled={isSaving}
+        >
+          {isSaving ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Salvando...
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4 mr-2" />
+              Salvar Todas as Configurações
+            </>
+          )}
         </Button>
       </div>
     </div>
