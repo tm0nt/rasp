@@ -26,6 +26,7 @@ import { ToastContainer } from "@/components/ui/toast"
 import { useAuth } from "@/hooks/useAuth"
 import { useNavigation } from "@/hooks/useNavigation"
 import { useToast } from "@/contexts/toast-context"
+import { config } from "process"
 
 function HeroCarousel() {
   return (
@@ -57,6 +58,7 @@ function RaspouGanhouApp() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalTab, setModalTab] = useState<"login" | "register">("login")
   const [isLoaded, setIsLoaded] = useState(false)
+  const [rtp, setRtp] = useState("")
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [gameData, setGameData] = useState<any | null>(null)
   const [purchaseLoading, setPurchaseLoading] = useState<number | null>(null)
@@ -128,6 +130,7 @@ function RaspouGanhouApp() {
         credentials: 'include',
       })
       const configData = await configResponse.json()
+      setRtp(configData.rtp_value)
       if (!configResponse.ok) {
         throw new Error(configData.error || 'Erro ao carregar configuração')
       }
@@ -380,6 +383,7 @@ function RaspouGanhouApp() {
           onNavigate={handleNavigate}
           categoryId={selectedCategoryId}
           gameData={gameData}
+          rtp={rtp}
           onPlayAgain={playAgain}
         />
       )
@@ -392,6 +396,7 @@ function RaspouGanhouApp() {
           onNavigate={handleNavigate}
           categoryId={selectedCategoryId}
           gameData={gameData}
+          rtp={rtp}
           onPlayAgain={playAgain}
         />
       )
@@ -404,6 +409,7 @@ function RaspouGanhouApp() {
           onNavigate={handleNavigate}
           categoryId={selectedCategoryId}
           gameData={gameData}
+          rtp={rtp}
           onPlayAgain={playAgain}
         />
       )
@@ -416,6 +422,7 @@ function RaspouGanhouApp() {
           onNavigate={handleNavigate}
           categoryId={selectedCategoryId}
           gameData={gameData}
+          rtp={rtp}
           onPlayAgain={playAgain}
         />
       )

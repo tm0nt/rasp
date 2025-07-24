@@ -5,6 +5,7 @@ import { PageLayout } from "@/components/layout/page-layout"
 import { ScratchOffGame } from "@/components/game/scratch-off-game"
 
 interface ScratchGamePageProps {
+  rtp: string
   onBack: () => void
   user: {
     id: string
@@ -19,11 +20,11 @@ interface ScratchGamePageProps {
   categoryId: number
 }
 
-export function ScratchGamePage({ onBack, user, onLogout, onNavigate, categoryId }: ScratchGamePageProps) {
+export function ScratchGamePage({ onBack, user, onLogout, onNavigate, categoryId, rtp }: ScratchGamePageProps) {
   const [gameKey, setGameKey] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [balance, setBalance] = useState(user.balance)
-  const [currentWinningPrize] = useState(() => generateGameResult())
+  const [currentWinningPrize, setCurrentWinningPrize] = useState<any>(null)
   const [purchaseId, setPurchaseId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -49,7 +50,7 @@ export function ScratchGamePage({ onBack, user, onLogout, onNavigate, categoryId
   ]
 
   function generateGameResult() {
-    const isWinner = Math.random() < 0.3
+    const isWinner = Math.random() < parseFloat(rtp) / 100
     if (isWinner) {
       const winningProbabilities = [
         { prize: prizes[11], weight: 35 },
@@ -75,10 +76,14 @@ export function ScratchGamePage({ onBack, user, onLogout, onNavigate, categoryId
     return null
   }
 
+  useEffect(() => {
+    setCurrentWinningPrize(generateGameResult())
+  }, [gameKey])
+
   const handleGameComplete = async (isWinner: boolean, prize?: any) => {
     if (isWinner && prize && purchaseId) {
       console.log("Jogador ganhou:", prize)
-      const amount = parseFloat(prize.value.replace("R$", "").replace(",", "."))
+      const amount = parseFloat(prize.value.replace("R$","").trim().replace(/\./g, "").replace(",", "."))
       try {
         const res = await fetch("/api/games", {
           method: "POST",
@@ -90,7 +95,7 @@ export function ScratchGamePage({ onBack, user, onLogout, onNavigate, categoryId
         })
         if (res.ok) {
           const data = await res.json()
-          setBalance(data.newBalance)
+          setBalance(prev => prev + amount)
           
           // Update the bet result in the database
           await fetch("/api/games/update", {

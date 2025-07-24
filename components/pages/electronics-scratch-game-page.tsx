@@ -5,6 +5,7 @@ import { PageLayout } from "@/components/layout/page-layout"
 import { ScratchOffGame } from "@/components/game/scratch-off-game"
 
 interface ElectronicsScratchGamePageProps {
+  rtp: string
   onBack: () => void
   user: {
     id: string
@@ -20,6 +21,7 @@ interface ElectronicsScratchGamePageProps {
 }
 
 export function ElectronicsScratchGamePage({
+  rtp,
   onBack,
   user,
   onLogout,
@@ -60,7 +62,7 @@ export function ElectronicsScratchGamePage({
   ]
 
   const generateGameResult = () => {
-    const isWinner = Math.random() < 0.3
+    const isWinner = Math.random() < parseFloat(rtp) / 100
     if (isWinner) {
       const winningProbabilities = [
         { prize: electronicsPrizes[16], weight: 25 },
@@ -112,7 +114,7 @@ export function ElectronicsScratchGamePage({
         
         if (res.ok) {
           const data = await res.json()
-          setBalance(data.newBalance)
+          setBalance(prev => prev + amount)
           
           // Update the bet result in the database
           await fetch("/api/games/update", {

@@ -5,6 +5,7 @@ import { PageLayout } from "@/components/layout/page-layout"
 import { ScratchOffGame } from "@/components/game/scratch-off-game"
 
 interface CosmeticsScratchGamePageProps {
+  rtp: string
   onBack: () => void
   user: {
     id: string
@@ -20,6 +21,7 @@ interface CosmeticsScratchGamePageProps {
 }
 
 export function CosmeticsScratchGamePage({
+  rtp,
   onBack,
   user,
   onLogout,
@@ -28,7 +30,9 @@ export function CosmeticsScratchGamePage({
 }: CosmeticsScratchGamePageProps) {
   const [gameKey, setGameKey] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+  const [balance, setBalance] = useState(user.balance)
   const [currentWinningPrize, setCurrentWinningPrize] = useState<any>(null)
+  const [purchaseId, setPurchaseId] = useState<string | null>(null)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -51,8 +55,7 @@ export function CosmeticsScratchGamePage({
   ]
 
   const generateGameResult = () => {
-    const isWinner = Math.random() < 0.3
-
+    const isWinner = Math.random() < parseFloat(rtp) / 100
     if (isWinner) {
       const winningProbabilities = [
         { prize: cosmeticsPrizes[9], weight: 35 },
@@ -66,16 +69,13 @@ export function CosmeticsScratchGamePage({
         { prize: cosmeticsPrizes[1], weight: 0.8 },
         { prize: cosmeticsPrizes[0], weight: 0.2 },
       ]
-
       const totalWeight = winningProbabilities.reduce((sum, item) => sum + item.weight, 0)
       let random = Math.random() * totalWeight
-
       for (const item of winningProbabilities) {
         random -= item.weight
         if (random <= 0) return item.prize
       }
     }
-
     return null
   }
 
@@ -84,52 +84,86 @@ export function CosmeticsScratchGamePage({
   }, [gameKey])
 
   const handleGameComplete = async (isWinner: boolean, prize?: any) => {
-    if (isWinner && prize) {
+    if (isWinner && prize && purchaseId) {
       console.log("Jogador ganhou:", prize)
-
+      const amount = parseFloat(prize.value.replace("R$","").trim().replace(/\./g, "").replace(",", "."))
       try {
         const res = await fetch("/api/games", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "win",
-            prizeValue: prize.value,
+            prizeValue: prize.value
           }),
         })
-
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || "Erro ao creditar prêmio")
-        console.log("Saldo atualizado após vitória:", data.newBalance)
+        
+        if (res.ok) {
+          const data = await res.json()
+          setBalance(prev => prev + amount)
+          
+          await fetch("/api/games/update", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              betId: purchaseId,
+              result: "won",
+              prizeId: prize.id,
+              prizeAmount: amount
+            }),
+          })
+        } else {
+          console.error("Erro ao registrar prêmio na API")
+        }
       } catch (err) {
-        console.error("Erro ao registrar prêmio:", err)
+        console.error("Erro na requisição /api/games", err)
       }
-    } else {
+    } else if (purchaseId) {
+      try {
+        await fetch("/api/games/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            betId: purchaseId,
+            result: "lost"
+          }),
+        })
+      } catch (err) {
+        console.error("Erro ao atualizar aposta como perdida", err)
+      }
       console.log("Jogador não ganhou desta vez")
     }
   }
 
   const handlePlayAgain = async () => {
+    if (balance < 2.5) {
+      onNavigate("deposit")
+      return
+    }
+
     try {
-      const res = await fetch("/api/games", {
+      const res = await fetch("/api/games/purchase", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "play" }),
+        body: JSON.stringify({
+          categoryId,
+          amount: 2.5
+        }),
       })
 
-      const data = await res.json()
-
-      if (!res.ok) {
-        if (res.status === 402) {
+      if (res.ok) {
+        const data = await res.json()
+        setBalance(prev => prev - 2.5)
+        setPurchaseId(data.purchaseId)
+        setGameKey(prev => prev + 1)
+      } else {
+        const error = await res.json()
+        console.error("Erro ao debitar saldo:", error.error)
+        if (error.error === 'Saldo insuficiente') {
           onNavigate("deposit")
-        } else {
-          alert(data.error || "Erro ao tentar jogar novamente.")
         }
-        return
       }
-
-      setGameKey((prev) => prev + 1)
-    } catch (error) {
-      console.error("Erro ao tentar jogar novamente:", error)
+    } catch (err) {
+      console.error("Erro ao conectar com /api/games/purchase", err)
     }
   }
 
@@ -139,7 +173,7 @@ export function CosmeticsScratchGamePage({
       subtitle="Raspe e ganhe produtos de beleza incríveis!"
       showBackButton
       onBack={onBack}
-      user={user}
+      user={{ ...user, balance }}
       onLogout={onLogout}
       onNavigate={onNavigate}
     >

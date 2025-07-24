@@ -35,6 +35,7 @@ export function GeneralSettings() {
     facebookPixelId: "",
   })
 
+  const [rtpValue, setRtpValue] = useState(0)
   const [maintenanceMode, setMaintenanceMode] = useState(false)
 
   // Carregar configurações ao montar o componente
@@ -48,6 +49,7 @@ export function GeneralSettings() {
           setSiteConfig(data.data.siteConfig)
           setSeoConfig(data.data.seoConfig)
           setMaintenanceMode(data.data.maintenanceMode)
+          setRtpValue(data.data.rtpValue || 0)
         } else {
           toast({
             title: "Erro",
@@ -82,7 +84,8 @@ export function GeneralSettings() {
           settings: {
             siteConfig,
             seoConfig,
-            maintenanceMode
+            maintenanceMode,
+            rtpValue
           }
         })
       })
@@ -208,6 +211,39 @@ export function GeneralSettings() {
         <h1 className="text-2xl font-bold text-white mb-2">Configurações Gerais</h1>
         <p className="text-gray-400">Configure informações básicas do site</p>
       </div>
+
+           <Card className="bg-gray-800 border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white">
+            Configurações de Jogo
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-gray-300 text-sm font-medium mb-2">
+                Valor do RTP (0-100)
+              </label>
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                value={rtpValue}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value)
+                  if (value >= 0 && value <= 100) {
+                    setRtpValue(value)
+                  }
+                }}
+                className="bg-gray-700 border-gray-600 text-white"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                O RTP (Return to Player) determina a porcentagem de retorno aos jogadores.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Informações do Site */}
       <Card className="bg-gray-800 border-gray-700">
