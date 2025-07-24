@@ -229,12 +229,6 @@ export function GeneralSettings() {
                 min="0"
                 max="100"
                 value={rtpValue}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value)
-                  if (value >= 0 && value <= 100) {
-                    setRtpValue(value)
-                  }
-                }}
                 className="bg-gray-700 border-gray-600 text-white"
               />
               <p className="text-xs text-gray-400 mt-1">
