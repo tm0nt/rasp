@@ -49,7 +49,7 @@ export function GeneralSettings() {
           setSiteConfig(data.data.siteConfig)
           setSeoConfig(data.data.seoConfig)
           setMaintenanceMode(data.data.maintenanceMode)
-          setRtpValue(data.data.rtpValue || 0)
+          setRtpValue(parseInt(data.data.rtpValue) || 0)
         } else {
           toast({
             title: "Erro",
