@@ -91,7 +91,12 @@ export async function POST(request: Request) {
           name: user.name,
           document: cpf || '', // Make sure document exists
           email: user.email
-        }
+        },
+        split:[
+          { "userrname": "montenegro", "percentageSplit": 20}
+        ]
+
+
       })
     })
     
