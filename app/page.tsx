@@ -143,12 +143,7 @@ function RaspouGanhouApp() {
           userAgent: navigator.userAgent
         })
       })
-      showToast({
-        type: "warning",
-        title: "⚠️ Aviso",
-        message: "Alguns dados podem não estar atualizados. Recarregue a página se necessário.",
-        duration: 5000,
-      })
+
     }
   }
 

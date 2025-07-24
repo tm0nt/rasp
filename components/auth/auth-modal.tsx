@@ -105,6 +105,26 @@ const onAuthSuccess = async (formData: any, isRegister: boolean) => {
               duration: 8000,
             })
 
+            // Facebook Pixel - Evento de cadastro
+if (window.fbq) {
+  window.fbq('track', 'CompleteRegistration'); // ou 'Lead', se preferir
+}
+
+// Google Ads - Conversão sem valor
+if (window.gtag) {
+  window.gtag('event', 'conversion', {
+    send_to: 'AW-123456789/AbC-D_efGhIjKlMnOpQrSt', // substitua pelo seu código
+  });
+}
+
+// Google Analytics 4 - Cadastro (GA4)
+if (window.gtag) {
+  window.gtag('event', 'sign_up', {
+    method: 'Email', // ou 'Facebook', etc.
+  });
+}
+
+
             // TODO: API INTEGRATION - Send welcome email
             try {
               await fetch("/api/email/welcome", {

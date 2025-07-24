@@ -424,33 +424,6 @@ export function GeneralSettings() {
         </CardContent>
       </Card>
 
-      {/* Modo de Manutenção */}
-      <Card className="bg-gray-800 border-gray-700">
-        <CardHeader>
-          <CardTitle className="text-white">Modo de Manutenção</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-white font-medium">Ativar Modo de Manutenção</h3>
-              <p className="text-gray-400 text-sm">Quando ativado, apenas administradores podem acessar o site</p>
-            </div>
-            <button
-              onClick={() => setMaintenanceMode(!maintenanceMode)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                maintenanceMode ? "bg-red-600" : "bg-gray-600"
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  maintenanceMode ? "translate-x-6" : "translate-x-1"
-                }`}
-              />
-            </button>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Botão de Salvar */}
       <div className="flex justify-end">
         <Button onClick={handleSaveConfig} className="bg-green-600 hover:bg-green-700 text-white px-8">

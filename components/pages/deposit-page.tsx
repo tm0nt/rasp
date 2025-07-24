@@ -184,6 +184,43 @@ export function DepositPage({ onBack, user, onLogout, onNavigate }: DepositPageP
       duration: 8000,
     })
 
+    const handlePaymentSuccess = async () => {
+  const amount = getCurrentAmount()
+
+  if (timerRef.current) {
+    clearInterval(timerRef.current)
+  }
+
+  showToast({
+    type: "success",
+    title: "💰 Depósito confirmado!",
+    message: `R$ ${amount.toFixed(2)} foi adicionado à sua conta com sucesso.`,
+    duration: 8000,
+  })
+
+  // 🔵 Facebook Pixel - Evento de compra
+  if (window.fbq) {
+    window.fbq('track', 'Purchase', {
+      value: amount,
+      currency: 'BRL',
+    })
+  }
+
+  // 🟢 Google Ads / Analytics - Conversão
+  if (window.gtag) {
+    window.gtag('event', 'purchase', {
+      value: amount,
+      currency: 'BRL',
+      transaction_id: `txn-${Date.now()}`, // ou use um ID real se tiver
+    })
+  }
+
+  setTimeout(() => {
+    onNavigate("wallet")
+  }, 2000)
+}
+
+
     setTimeout(() => {
       onNavigate("wallet")
     }, 2000)
