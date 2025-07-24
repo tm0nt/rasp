@@ -21,12 +21,12 @@ import { ScratchGamePage } from "@/components/pages/scratch-game-page"
 import { CosmeticsScratchGamePage } from "@/components/pages/cosmetics-scratch-game-page"
 import { ElectronicsScratchGamePage } from "@/components/pages/electronics-scratch-game-page"
 import { VehiclesScratchGamePage } from "@/components/pages/vehicles-scratch-game-page"
+import { LatestWinners } from "@/components/pages/latest-winners"
 import { ToastProvider } from "@/contexts/toast-context"
 import { ToastContainer } from "@/components/ui/toast"
 import { useAuth } from "@/hooks/useAuth"
 import { useNavigation } from "@/hooks/useNavigation"
 import { useToast } from "@/contexts/toast-context"
-import { config } from "process"
 
 function HeroCarousel() {
   return (
@@ -116,42 +116,40 @@ function RaspouGanhouApp() {
    */
   const loadInitialData = async () => {
     try {
-      const promotionsResponse = await fetch('/api/promotions/active', {
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+      const promotionsResponse = await fetch("/api/promotions/active", {
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
       })
       const promotionsData = await promotionsResponse.json()
       if (!promotionsResponse.ok) {
-        throw new Error(promotionsData.error || 'Erro ao carregar promoções')
+        throw new Error(promotionsData.error || "Erro ao carregar promoções")
       }
 
-      const configResponse = await fetch('/api/config/app', {
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+      const configResponse = await fetch("/api/config/app", {
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
       })
       const configData = await configResponse.json()
       setRtp(configData.rtp_value)
       if (!configResponse.ok) {
-        throw new Error(configData.error || 'Erro ao carregar configuração')
+        throw new Error(configData.error || "Erro ao carregar configuração")
       }
     } catch (error) {
       console.error("Failed to load initial data:", error)
-      await fetch('/api/errors/log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      await fetch("/api/errors/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           error: error.message,
-          context: 'app_initialization',
+          context: "app_initialization",
           timestamp: new Date().toISOString(),
-          userAgent: navigator.userAgent
-        })
+          userAgent: navigator.userAgent,
+        }),
       })
-
     }
   }
 
   const [activeTab, setActiveTab] = useState("destaque")
-
   const tabs = [
     { id: "destaque", label: "Destaque" },
     { id: "pix", label: "PIX na Conta" },
@@ -230,21 +228,22 @@ function RaspouGanhouApp() {
     setPurchaseLoading(category.id)
 
     try {
-      const response = await fetch('/api/games/purchase', {
-        method: 'POST',
+      const response = await fetch("/api/games/purchase", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        credentials: 'include',
+        credentials: "include",
         body: JSON.stringify({
           categoryId: category.id,
           amount: price,
-          userId: user.id
-        })
+          userId: user.id,
+        }),
       })
+
       const result = await response.json()
       if (!response.ok) {
-        throw new Error(result.error || 'Erro na compra')
+        throw new Error(result.error || "Erro na compra")
       }
 
       const success = await deductBalance(price, "bet")
@@ -259,41 +258,48 @@ function RaspouGanhouApp() {
         duration: 5000,
       })
 
-      await fetch('/api/analytics/track', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+      await fetch("/api/analytics/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
-          event: 'game_purchased',
+          event: "game_purchased",
           userId: user.id,
           properties: {
             categoryId: category.id,
             amount: price,
             categoryTitle: category.title,
-            timestamp: new Date().toISOString()
-          }
-        })
+            timestamp: new Date().toISOString(),
+          },
+        }),
       })
 
-      const gameResponse = await fetch('/api/games/generate', {
-        method: 'POST',
+      const gameResponse = await fetch("/api/games/generate", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        credentials: 'include',
+        credentials: "include",
         body: JSON.stringify({
           purchaseId: result.purchaseId,
           categoryId: category.id,
-          userId: user.id
-        })
+          userId: user.id,
+        }),
       })
+
       const gameData = await gameResponse.json()
       if (!gameResponse.ok) {
-        throw new Error(gameData.error || 'Erro ao gerar jogo')
+        throw new Error(gameData.error || "Erro ao gerar jogo")
       }
 
       // Record bet result
-      await recordBet(category.id, price, gameData.gameData.result.prize_value > 0 ? 'win' : 'lose', gameData.gameData.result.prize_name, gameData.gameData.result.prize_value);
+      await recordBet(
+        category.id,
+        price,
+        gameData.gameData.result.prize_value > 0 ? "win" : "lose",
+        gameData.gameData.result.prize_name,
+        gameData.gameData.result.prize_value,
+      )
 
       setGameData(gameData.gameData)
       setSelectedCategoryId(category.id)
@@ -306,18 +312,19 @@ function RaspouGanhouApp() {
         message: "Ocorreu um erro ao processar sua compra. Tente novamente.",
         duration: 6000,
       })
-      await fetch('/api/errors/log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+
+      await fetch("/api/errors/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           error: error.message,
-          context: 'game_purchase',
+          context: "game_purchase",
           userId: user.id,
           categoryId: category.id,
           amount: price,
-          timestamp: new Date().toISOString()
-        })
+          timestamp: new Date().toISOString(),
+        }),
       })
     } finally {
       setPurchaseLoading(null)
@@ -371,8 +378,9 @@ function RaspouGanhouApp() {
   }
 
   if (currentPage === "scratch-game" && isAuthenticated && user && selectedCategoryId && gameData) {
-    const currentCategory = categories.find((cat: any) => cat.id === selectedCategoryId);
-    const playAgain = () => handleBuyAndPlay(currentCategory);
+    const currentCategory = categories.find((cat: any) => cat.id === selectedCategoryId)
+    const playAgain = () => handleBuyAndPlay(currentCategory)
+
     // Route to specific game based on category
     if (selectedCategoryId === 3) {
       return (
@@ -434,7 +442,9 @@ function RaspouGanhouApp() {
     <div className="min-h-screen bg-black text-white font-sans">
       {/* Header */}
       <header
-        className={`bg-black border-b border-gray-800 sticky top-0 z-40 backdrop-blur-md bg-black/95 transition-all duration-500 ${isLoaded ? "animate-in slide-in-from-top duration-700" : ""}`}
+        className={`bg-black border-b border-gray-800 sticky top-0 z-40 backdrop-blur-md bg-black/95 transition-all duration-500 ${
+          isLoaded ? "animate-in slide-in-from-top duration-700" : ""
+        }`}
       >
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -448,7 +458,6 @@ function RaspouGanhouApp() {
                 priority
               />
             </div>
-
             {!isAuthenticated && (
               <div className="hidden md:flex items-center gap-2 text-green-400 animate-pulse">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-ping"></div>
@@ -470,14 +479,21 @@ function RaspouGanhouApp() {
       <div className="max-w-6xl mx-auto px-4">
         {/* Hero Section */}
         <section
-          className={`relative overflow-hidden py-2 transition-all duration-700 ${isLoaded ? "animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300" : ""}`}
+          className={`relative overflow-hidden py-2 transition-all duration-700 ${
+            isLoaded ? "animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300" : ""
+          }`}
         >
           <HeroCarousel />
         </section>
 
+        {/* Latest Winners Section */}
+        <LatestWinners />
+
         {/* Navigation Tabs */}
         <nav
-          className={`py-4 transition-all duration-700 ${isLoaded ? "animate-in slide-in-from-left duration-1000 delay-500" : ""}`}
+          className={`py-4 transition-all duration-700 ${
+            isLoaded ? "animate-in slide-in-from-left duration-1000 delay-500" : ""
+          }`}
         >
           <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory md:overflow-visible" style={tabsStyle}>
             {tabs.map((tab, index) => (
@@ -501,7 +517,9 @@ function RaspouGanhouApp() {
 
         {/* Product Cards */}
         <section
-          className={`pb-20 transition-all duration-700 ${isLoaded ? "animate-in fade-in slide-in-from-bottom duration-1000 delay-700" : ""}`}
+          className={`pb-20 transition-all duration-700 ${
+            isLoaded ? "animate-in fade-in slide-in-from-bottom duration-1000 delay-700" : ""
+          }`}
         >
           <div className="space-y-6 md:grid md:grid-cols-2 lg:grid-cols-4 md:gap-6 md:space-y-0">
             {filteredCategories.map((category: any, index: number) => (
