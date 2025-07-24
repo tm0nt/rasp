@@ -225,9 +225,8 @@ export function GeneralSettings() {
                 Valor do RTP (0-100)
               </label>
               <Input
-                type="number"
-                min="0"
-                max="100"
+                type="text"
+
                 value={rtpValue}
                 className="bg-gray-700 border-gray-600 text-white"
               />
