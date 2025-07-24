@@ -79,22 +79,6 @@ export async function POST(request: Request) {
       DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
     `, [settingKey, fileUrl])
 
-    // Registrar no log de auditoria
-    await query(`
-      INSERT INTO admin_audit_logs (admin_id, action, resource_type, new_values)
-      VALUES ($1, $2, $3, $4)
-    `, [
-      "de91b299-18c9-4cc3-ad8e-ffc7d3f637be",
-      'upload',
-      type,
-      JSON.stringify({
-        filename,
-        fileUrl,
-        size: file.size,
-        mimeType: file.type,
-      }),
-    ])
-
     return NextResponse.json({
       success: true,
       fileUrl,
