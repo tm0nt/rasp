@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { ServiceFactory } from "@/factories/service.factory"
 import { UsersTableFilters } from "./users-table-filters"
 import { UsersTableContent } from "./users-table-content"
 import { UserViewModal } from "./user-view-modal"
@@ -10,7 +9,7 @@ import { UserEditModal } from "./user-edit-modal"
 import { ConfirmationModal } from "@/components/modals/confirmation-modal"
 import { toast } from "@/components/ui/use-toast"
 import type { IUser } from "@/types/admin"
-import type { IUserService } from "@/interfaces/admin-services"
+import { PowerOff, Trash2 } from "lucide-react"
 
 export function UsersTable() {
   const [users, setUsers] = useState<IUser[]>([])
@@ -19,9 +18,8 @@ export function UsersTable() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
   const [selectedUser, setSelectedUser] = useState<IUser | null>(null)
-  const [modalType, setModalType] = useState<"view" | "edit" | "delete" | null>(null)
-
-  const userService: IUserService = ServiceFactory.getUserService()
+  const [modalType, setModalType] = useState<"view" | "edit" | "deactivate" | "delete" | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   useEffect(() => {
     loadUsers()
@@ -34,8 +32,11 @@ export function UsersTable() {
   const loadUsers = async (): Promise<void> => {
     try {
       setIsLoading(true)
-      const usersData = await userService.getUsers()
-      setUsers(usersData)
+      const response = await fetch('/api/admin/users')
+      if (!response.ok) throw new Error('Failed to fetch users')
+      
+      const { data } = await response.json()
+      setUsers(data)
     } catch (error) {
       console.error("Erro ao carregar usuários:", error)
       toast({
@@ -48,63 +49,54 @@ export function UsersTable() {
     }
   }
 
-  const applyFilters = async (): Promise<void> => {
-    try {
-      let filtered = [...users]
+  const applyFilters = (): void => {
+    let filtered = [...users]
 
-      if (searchTerm) {
-        filtered = await userService.searchUsers(searchTerm)
-      }
-
-      if (filterStatus !== "all") {
-        filtered = filtered.filter((user) => 
-          user.status.toLowerCase() === filterStatus.toLowerCase()
-        )
-      }
-
-      setFilteredUsers(filtered)
-    } catch (error) {
-      console.error("Erro ao filtrar usuários:", error)
-      setFilteredUsers(users)
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase()
+      filtered = filtered.filter(user => 
+        user.name.toLowerCase().includes(term) || 
+        user.email.toLowerCase().includes(term) ||
+        user.phone?.toLowerCase().includes(term)
+      )
     }
+
+    if (filterStatus !== "all") {
+      filtered = filtered.filter(user => 
+        user.status.toLowerCase() === filterStatus.toLowerCase()
+      )
+    }
+
+    setFilteredUsers(filtered)
   }
 
-  const handleUserAction = async (action: string, userId: string): Promise<void> => {
-    try {
-      const user = users.find(u => u.id === userId)
-      if (!user) return
+  const handleUserAction = (action: string, userId: string): void => {
+    const user = users.find(u => u.id === userId)
+    if (!user) return
 
-      setSelectedUser(user)
-
-      switch (action) {
-        case "view":
-          setModalType("view")
-          break
-        case "edit":
-          setModalType("edit")
-          break
-        case "delete":
-          setModalType("delete")
-          break
-      }
-    } catch (error) {
-      console.error(`Erro ao executar ação ${action}:`, error)
-      toast({
-        title: "Erro",
-        description: `Não foi possível ${action === "view" ? "visualizar" : action === "edit" ? "editar" : "excluir"} o usuário`,
-        variant: "destructive"
-      })
-    }
+    setSelectedUser(user)
+    setModalType(action as "view" | "edit" | "deactivate" | "delete")
   }
 
   const handleEditSubmit = async (updatedUser: Partial<IUser>) => {
     if (!selectedUser) return
 
     try {
-      const result = await userService.updateUser(selectedUser.id, updatedUser)
+      setIsProcessing(true)
+      const response = await fetch(`/api/admin/users/${selectedUser.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedUser)
+      })
+
+      if (!response.ok) throw new Error('Failed to update user')
+
+      const { data } = await response.json()
       
       setUsers(users.map(user => 
-        user.id === selectedUser.id ? { ...user, ...result } : user
+        user.id === selectedUser.id ? { ...user, ...data } : user
       ))
 
       toast({
@@ -120,22 +112,30 @@ export function UsersTable() {
         description: "Não foi possível atualizar o usuário",
         variant: "destructive"
       })
+    } finally {
+      setIsProcessing(false)
     }
   }
 
-  const handleDeleteConfirm = async () => {
+  const handleDeactivateConfirm = async () => {
     if (!selectedUser) return
 
     try {
-      const success = await userService.deleteUser(selectedUser.id)
-      
-      if (success) {
-        setUsers(users.filter(user => user.id !== selectedUser.id))
-        toast({
-          title: "Sucesso",
-          description: "Usuário desativado com sucesso",
-        })
-      }
+      setIsProcessing(true)
+      const response = await fetch(`/api/admin/users/${selectedUser.id}/deactivate`, {
+        method: 'PATCH'
+      })
+
+      if (!response.ok) throw new Error('Failed to deactivate user')
+
+      setUsers(users.map(user => 
+        user.id === selectedUser.id ? { ...user, is_active: false, status: 'inactive' } : user
+      ))
+
+      toast({
+        title: "Sucesso",
+        description: "Usuário desativado com sucesso",
+      })
 
       setModalType(null)
     } catch (error) {
@@ -145,6 +145,40 @@ export function UsersTable() {
         description: "Não foi possível desativar o usuário",
         variant: "destructive"
       })
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedUser) return
+
+    try {
+      setIsProcessing(true)
+      const response = await fetch(`/api/admin/users/${selectedUser.id}/delete`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) throw new Error('Failed to delete user')
+
+      setUsers(users.filter(user => user.id !== selectedUser.id))
+
+      toast({
+        title: "Sucesso",
+        description: "Usuário excluído permanentemente com sucesso",
+      })
+      loadUsers()
+
+      setModalType(null)
+    } catch (error) {
+      console.error("Erro ao excluir usuário:", error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir o usuário",
+        variant: "destructive"
+      })
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -181,15 +215,33 @@ export function UsersTable() {
           user={selectedUser}
           onClose={() => setModalType(null)}
           onSubmit={handleEditSubmit}
+          isLoading={isProcessing}
+        />
+      )}
+
+      {modalType === "deactivate" && selectedUser && (
+        <ConfirmationModal
+          title="Confirmar Desativação"
+          description={`Tem certeza que deseja desativar o usuário ${selectedUser.name}?`}
+          confirmText="Desativar"
+          variant="warning"
+          icon={<PowerOff className="w-5 h-5" />}
+          onConfirm={handleDeactivateConfirm}
+          onCancel={() => setModalType(null)}
+          isLoading={isProcessing}
         />
       )}
 
       {modalType === "delete" && selectedUser && (
         <ConfirmationModal
-          title="Confirmar Desativação"
-          description={`Tem certeza que deseja desativar o usuário ${selectedUser.name}?`}
+          title="Confirmar Exclusão"
+          description={`Tem certeza que deseja excluir permanentemente o usuário ${selectedUser.name}? Esta ação não pode ser desfeita.`}
+          confirmText="Excluir Permanentemente"
+          variant="destructive"
+          icon={<Trash2 className="w-5 h-5" />}
           onConfirm={handleDeleteConfirm}
           onCancel={() => setModalType(null)}
+          isLoading={isProcessing}
         />
       )}
     </div>

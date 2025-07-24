@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { query } from '@/lib/db'
 
-// Tipos para as configurações
 interface SiteConfig {
   siteName: string
   siteUrl: string
@@ -22,94 +21,68 @@ interface SeoConfig {
   facebookPixelId: string
 }
 
-export interface SystemSettings {
+interface SystemSettings {
   siteConfig: SiteConfig
   seoConfig: SeoConfig
   maintenanceMode: boolean
 }
 
-// Helper para converter settings do banco para o formato do frontend
-function dbSettingsToFrontend(settings: any[]): SystemSettings {
-  const settingsObj = settings.reduce((acc, setting) => {
-    acc[setting.key] = setting.value
-    return acc
-  }, {})
-
-  return {
-    siteConfig: {
-      siteName: settingsObj['site_name'] || '',
-      siteUrl: settingsObj['site_url'] || '',
-      siteDescription: settingsObj['site_description'] || '',
-      logo: settingsObj['site_logo'] || '',
-      favicon: settingsObj['site_favicon'] || '',
-      supportEmail: settingsObj['support_email'] || '',
-      supportPhone: settingsObj['support_phone'] || '',
-    },
-    seoConfig: {
-      metaTitle: settingsObj['seo_meta_title'] || '',
-      metaDescription: settingsObj['seo_meta_description'] || '',
-      metaKeywords: settingsObj['seo_meta_keywords'] || '',
-      googleAnalyticsId: settingsObj['seo_google_analytics'] || '',
-      facebookPixelId: settingsObj['seo_facebook_pixel'] || '',
-    },
-    maintenanceMode: settingsObj['maintenance_mode'] === 'true',
-  }
-}
-
-// Helper para converter settings do frontend para o banco
-function frontendSettingsToDb(settings: SystemSettings): any[] {
-  return [
-    { key: 'site_name', value: settings.siteConfig.siteName },
-    { key: 'site_url', value: settings.siteConfig.siteUrl },
-    { key: 'site_description', value: settings.siteConfig.siteDescription },
-    { key: 'site_logo', value: settings.siteConfig.logo },
-    { key: 'site_favicon', value: settings.siteConfig.favicon },
-    { key: 'support_email', value: settings.siteConfig.supportEmail },
-    { key: 'support_phone', value: settings.siteConfig.supportPhone },
-    { key: 'seo_meta_title', value: settings.seoConfig.metaTitle },
-    { key: 'seo_meta_description', value: settings.seoConfig.metaDescription },
-    { key: 'seo_meta_keywords', value: settings.seoConfig.metaKeywords },
-    { key: 'seo_google_analytics', value: settings.seoConfig.googleAnalyticsId },
-    { key: 'seo_facebook_pixel', value: settings.seoConfig.facebookPixelId },
-    { key: 'maintenance_mode', value: settings.maintenanceMode.toString() },
-  ]
-}
-
 // GET - Buscar configurações
 export async function GET() {
-  const session = await getServerSession(authOptions)
-
-
   try {
-    // Buscar todas as configurações relevantes
     const result = await query(`
       SELECT key, value 
       FROM system_settings 
       WHERE key IN (
         'site_name', 'site_url', 'site_description', 'site_logo', 'site_favicon',
         'support_email', 'support_phone', 'seo_meta_title', 'seo_meta_description',
-        'seo_meta_keywords', 'seo_google_analytics', 'seo_facebook_pixel',
+        'seo_meta_keywords', 'seo_google_analytics', 'seo_facebook_pixel', 'maintenance_mode'
       )
     `)
 
-    if (result.rows.length === 0) {
+    if (!result.rows || result.rows.length === 0) {
       return NextResponse.json(
-        { error: 'Configurações não encontradas' },
+        { success: false, error: 'Configurações não encontradas' },
         { status: 404 }
       )
     }
 
-    const settings = dbSettingsToFrontend(result.rows)
+    const config = result.rows.reduce((acc: Record<string, string>, row: any) => {
+      acc[row.key] = row.value
+      return acc
+    }, {})
 
     return NextResponse.json({
       success: true,
-      data: settings,
+      data: {
+        siteConfig: {
+          siteName: config.site_name || '',
+          siteUrl: config.site_url || '',
+          siteDescription: config.site_description || '',
+          logo: config.site_logo || '',
+          favicon: config.site_favicon || '',
+          supportEmail: config.support_email || '',
+          supportPhone: config.support_phone || '',
+        },
+        seoConfig: {
+          metaTitle: config.seo_meta_title || '',
+          metaDescription: config.seo_meta_description || '',
+          metaKeywords: config.seo_meta_keywords || '',
+          googleAnalyticsId: config.seo_google_analytics || '',
+          facebookPixelId: config.seo_facebook_pixel || '',
+        },
+        maintenanceMode: config.maintenance_mode === 'true' || false
+      }
     })
 
-  } catch (error) {
-    console.error('Error fetching settings:', error)
+  } catch (error: any) {
+    console.error('Error fetching settings:', error.message)
     return NextResponse.json(
-      { error: 'Erro ao buscar configurações' },
+      { 
+        success: false, 
+        error: 'Erro ao buscar configurações',
+        details: error.message 
+      },
       { status: 500 }
     )
   }
@@ -118,41 +91,70 @@ export async function GET() {
 // POST - Atualizar configurações
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
+  
+  if (!session) {
+    return NextResponse.json(
+      { error: 'Não autorizado' },
+      { status: 401 }
+    )
+  }
 
   try {
     const body = await request.json()
     const settings: SystemSettings = body.settings
 
-    // Validar os dados recebidos
-    if (!settings || !settings.siteConfig || !settings.seoConfig) {
+    if (!settings?.siteConfig || !settings?.seoConfig) {
       return NextResponse.json(
         { error: 'Dados de configuração inválidos' },
         { status: 400 }
       )
     }
 
-    // Converter para formato do banco
-    const dbSettings = frontendSettingsToDb(settings)
+    // Prepare all settings to update
+    const updates = [
+      { key: 'site_name', value: settings.siteConfig.siteName },
+      { key: 'site_url', value: settings.siteConfig.siteUrl },
+      { key: 'site_description', value: settings.siteConfig.siteDescription },
+      { key: 'site_logo', value: settings.siteConfig.logo },
+      { key: 'site_favicon', value: settings.siteConfig.favicon },
+      { key: 'support_email', value: settings.siteConfig.supportEmail },
+      { key: 'support_phone', value: settings.siteConfig.supportPhone },
+      { key: 'seo_meta_title', value: settings.seoConfig.metaTitle },
+      { key: 'seo_meta_description', value: settings.seoConfig.metaDescription },
+      { key: 'seo_meta_keywords', value: settings.seoConfig.metaKeywords },
+      { key: 'seo_google_analytics', value: settings.seoConfig.googleAnalyticsId },
+      { key: 'seo_facebook_pixel', value: settings.seoConfig.facebookPixelId },
+      { key: 'maintenance_mode', value: settings.maintenanceMode.toString() },
+    ]
 
-    // Atualizar cada configuração no banco
-    for (const setting of dbSettings) {
-      await query(`
-        INSERT INTO system_settings (key, value)
-        VALUES ($1, $2)
-        ON CONFLICT (key) 
-        DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
-      `, [setting.key, setting.value])
+    // Execute all updates in a transaction
+    await query('BEGIN')
+    
+    for (const { key, value } of updates) {
+      await query(
+        `INSERT INTO system_settings (key, value)
+         VALUES ($1, $2)
+         ON CONFLICT (key) 
+         DO UPDATE SET value = $2, updated_at = NOW()`,
+        [key, value]
+      )
     }
+    
+    await query('COMMIT')
 
     return NextResponse.json({
       success: true,
       message: 'Configurações atualizadas com sucesso',
     })
 
-  } catch (error) {
-    console.error('Error updating settings:', error)
+  } catch (error: any) {
+    await query('ROLLBACK')
+    console.error('Error updating settings:', error.message)
     return NextResponse.json(
-      { error: 'Erro ao atualizar configurações' },
+      { 
+        error: 'Erro ao atualizar configurações',
+        details: error.message 
+      },
       { status: 500 }
     )
   }
