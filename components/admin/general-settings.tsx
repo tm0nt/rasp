@@ -9,14 +9,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { Globe, Upload, Save, ImageIcon, Link, FileText } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 
-/**
- * Página de configurações gerais do sistema
- */
 export function GeneralSettings() {
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [isOnline, setIsOnline] = useState(true)
   
+  // State for all configurations
   const [siteConfig, setSiteConfig] = useState({
     siteName: "",
     siteUrl: "",
@@ -38,11 +37,37 @@ export function GeneralSettings() {
   const [rtpValue, setRtpValue] = useState(0)
   const [maintenanceMode, setMaintenanceMode] = useState(false)
 
-  // Carregar configurações ao montar o componente
+  // Network status detection
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+    
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  // Load settings with cache busting
   useEffect(() => {
     const loadSettings = async () => {
+      if (!isOnline) {
+        toast({
+          title: "⚠️ Você está offline",
+          description: "Algumas funcionalidades podem não estar disponíveis",
+          variant: "default",
+          duration: 5000,
+        })
+        setIsLoading(false)
+        return
+      }
+
       try {
-        const response = await fetch('/api/admin/settings')
+        const timestamp = new Date().getTime()
+        const response = await fetch(`/api/admin/settings?t=${timestamp}`)
         const data = await response.json()
         
         if (data.success) {
@@ -52,17 +77,17 @@ export function GeneralSettings() {
           setRtpValue(parseInt(data.data.rtpValue) || 0)
         } else {
           toast({
-            title: "❌ Erro ao carregar configurações",
-            description: "Falha ao carregar as configurações do servidor",
+            title: "❌ Erro ao carregar",
+            description: data.error || "Falha ao carregar configurações",
             variant: "destructive",
             duration: 5000,
           })
         }
       } catch (error) {
-        console.error("Error loading settings:", error)
+        console.error("Error:", error)
         toast({
           title: "❌ Erro de conexão",
-          description: "Não foi possível conectar ao servidor para carregar as configurações",
+          description: "Falha ao conectar ao servidor",
           variant: "destructive",
           duration: 5000,
         })
@@ -72,8 +97,9 @@ export function GeneralSettings() {
     }
     
     loadSettings()
-  }, [toast])
+  }, [toast, isOnline])
 
+  // Handle RTP value change with validation
   const handleRtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     
@@ -98,10 +124,22 @@ export function GeneralSettings() {
     }
   };
 
+  // Save all configurations
   const handleSaveConfig = async () => {
-    setIsSaving(true);
+    if (!isOnline) {
+      toast({
+        title: "⚠️ Você está offline",
+        description: "Não é possível salvar sem conexão",
+        variant: "default",
+        duration: 5000,
+      })
+      return
+    }
+
+    setIsSaving(true)
     try {
-      const response = await fetch('/api/admin/settings', {
+      const timestamp = new Date().getTime()
+      const response = await fetch(`/api/admin/settings?t=${timestamp}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -114,143 +152,80 @@ export function GeneralSettings() {
             rtpValue
           }
         })
-      });
+      })
       
-      const data = await response.json();
+      const data = await response.json()
       
       if (!response.ok) {
-        if (response.status === 401) {
-          toast({
-            title: "❌ Não autorizado",
-            description: "Sua sessão pode ter expirado. Faça login novamente.",
-            variant: "destructive",
-            duration: 5000,
-          });
-          return;
-        }
-        
-        if (response.status === 500) {
-          toast({
-            title: "❌ Erro no servidor",
-            description: "O servidor encontrou um erro interno. Tente novamente mais tarde.",
-            variant: "destructive",
-            duration: 5000,
-          });
-          return;
-        }
+        throw new Error(data.error || "Erro ao salvar")
       }
-      
-      if (data.success) {
-        toast({
-          title: "✅ Configurações salvas com sucesso",
-          description: "Todas as alterações foram armazenadas no sistema.",
-          className: "bg-green-600 text-white border-0",
-          duration: 3000,
-        });
-      } else {
-        toast({
-          title: "❌ Erro ao salvar configurações",
-          description: data.error || "Ocorreu um erro desconhecido ao tentar salvar.",
-          variant: "destructive",
-          duration: 5000,
-        });
-      }
-    } catch (error) {
-      console.error("Error saving settings:", error);
+
       toast({
-        title: "❌ Erro de conexão",
-        description: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",
+        title: "✅ Sucesso",
+        description: "Configurações salvas com sucesso",
+        className: "bg-green-600 text-white border-0",
+        duration: 3000,
+      })
+    } catch (error) {
+      console.error("Error:", error)
+      toast({
+        title: "❌ Erro ao salvar",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
         variant: "destructive",
         duration: 5000,
-      });
+      })
     } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      try {
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('type', 'logo')
-        
-        const response = await fetch('/api/admin/upload', {
-          method: 'POST',
-          body: formData,
-        })
-        
-        const data = await response.json()
-        
-        if (data.success) {
-          setSiteConfig({ ...siteConfig, logo: data.fileUrl })
-          toast({
-            title: "✅ Logo atualizado",
-            description: "O logo do site foi atualizado com sucesso!",
-            className: "bg-green-600 text-white border-0",
-            duration: 3000,
-          })
-        } else {
-          toast({
-            title: "❌ Falha no upload",
-            description: data.error || "Falha ao fazer upload do logo",
-            variant: "destructive",
-            duration: 5000,
-          })
-        }
-      } catch (error) {
-        console.error("Error uploading logo:", error)
-        toast({
-          title: "❌ Erro de conexão",
-          description: "Falha ao conectar ao servidor para upload do logo",
-          variant: "destructive",
-          duration: 5000,
-        })
-      }
+      setIsSaving(false)
     }
   }
 
-  const handleFaviconUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Unified file upload handler for mobile
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'favicon') => {
     const file = event.target.files?.[0]
-    if (file) {
-      try {
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('type', 'favicon')
-        
-        const response = await fetch('/api/admin/upload', {
-          method: 'POST',
-          body: formData,
-        })
-        
-        const data = await response.json()
-        
-        if (data.success) {
-          setSiteConfig({ ...siteConfig, favicon: data.fileUrl })
-          toast({
-            title: "✅ Favicon atualizado",
-            description: "O favicon do site foi atualizado com sucesso!",
-            className: "bg-green-600 text-white border-0",
-            duration: 3000,
-          })
-        } else {
-          toast({
-            title: "❌ Falha no upload",
-            description: data.error || "Falha ao fazer upload do favicon",
-            variant: "destructive",
-            duration: 5000,
-          })
-        }
-      } catch (error) {
-        console.error("Error uploading favicon:", error)
-        toast({
-          title: "❌ Erro de conexão",
-          description: "Falha ao conectar ao servidor para upload do favicon",
-          variant: "destructive",
-          duration: 5000,
-        })
+    if (!file) return
+
+    if (!isOnline) {
+      toast({
+        title: "⚠️ Você está offline",
+        description: "Não é possível fazer upload sem conexão",
+        variant: "default",
+        duration: 5000,
+      })
+      return
+    }
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', type)
+      
+      const timestamp = new Date().getTime()
+      const response = await fetch(`/api/admin/upload?t=${timestamp}`, {
+        method: 'POST',
+        body: formData,
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || "Falha no upload")
       }
+
+      setSiteConfig(prev => ({ ...prev, [type]: data.fileUrl }))
+      toast({
+        title: `✅ ${type === 'logo' ? 'Logo' : 'Favicon'} atualizado`,
+        description: `O ${type === 'logo' ? 'logo' : 'favicon'} foi atualizado com sucesso!`,
+        className: "bg-green-600 text-white border-0",
+        duration: 3000,
+      })
+    } catch (error) {
+      console.error(`Error uploading ${type}:`, error)
+      toast({
+        title: `❌ Falha no upload ${type === 'logo' ? 'do logo' : 'do favicon'}`,
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+        duration: 5000,
+      })
     }
   }
 
@@ -269,6 +244,7 @@ export function GeneralSettings() {
         <p className="text-gray-400">Configure informações básicas do site</p>
       </div>
 
+      {/* Game Settings */}
       <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
           <CardTitle className="text-white">
@@ -288,6 +264,7 @@ export function GeneralSettings() {
                 min="0"
                 max="100"
                 className="bg-gray-700 border-gray-600 text-white"
+                inputMode="numeric"
               />
               <p className="text-xs text-gray-400 mt-1">
                 O RTP (Return to Player) determina a porcentagem de retorno aos jogadores.
@@ -297,7 +274,7 @@ export function GeneralSettings() {
         </CardContent>
       </Card>
 
-      {/* Informações do Site */}
+      {/* Site Information */}
       <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
@@ -363,7 +340,7 @@ export function GeneralSettings() {
         </CardContent>
       </Card>
 
-      {/* Upload de Logo e Favicon */}
+      {/* Logo and Favicon Upload */}
       <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
@@ -373,80 +350,54 @@ export function GeneralSettings() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Logo */}
-            <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">Logo do Site</label>
-              <div className="space-y-4">
-                <div className="flex items-center justify-center w-full h-32 bg-gray-700 rounded-lg border-2 border-dashed border-gray-600">
-                  {siteConfig.logo ? (
-                    <img
-                      src={siteConfig.logo}
-                      alt="Logo atual"
-                      className="max-h-28 max-w-full object-contain"
+            {(['logo', 'favicon'] as const).map((type) => (
+              <div key={type}>
+                <label className="block text-gray-300 text-sm font-medium mb-2">
+                  {type === 'logo' ? 'Logo do Site' : 'Favicon (32x32px)'}
+                </label>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-center w-full h-32 bg-gray-700 rounded-lg border-2 border-dashed border-gray-600">
+                    {siteConfig[type] ? (
+                      <img
+                        src={siteConfig[type]}
+                        alt={type === 'logo' ? 'Logo atual' : 'Favicon atual'}
+                        className={type === 'logo' ? "max-h-28 max-w-full object-contain" : "w-8 h-8 object-contain"}
+                      />
+                    ) : (
+                      <div className="text-center">
+                        <ImageIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-gray-400 text-sm">
+                          {type === 'logo' ? 'Nenhum logo' : 'Nenhum favicon'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileUpload(e, type)}
+                      className="hidden"
+                      id={`${type}-upload`}
+                      capture={type === 'logo' ? undefined : 'environment'}
                     />
-                  ) : (
-                    <div className="text-center">
-                      <ImageIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-gray-400 text-sm">Nenhum logo</p>
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" id="logo-upload" />
-                  <Button
-                    onClick={() => document.getElementById("logo-upload")?.click()}
-                    variant="outline"
-                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                  >
-                    <Upload className="w-4 h-4 mr-2" />
-                    Fazer Upload
-                  </Button>
+                    <Button
+                      onClick={() => document.getElementById(`${type}-upload`)?.click()}
+                      variant="outline"
+                      className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Fazer Upload
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-
-            {/* Favicon */}
-            <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">Favicon (32x32px)</label>
-              <div className="space-y-4">
-                <div className="flex items-center justify-center w-full h-32 bg-gray-700 rounded-lg border-2 border-dashed border-gray-600">
-                  {siteConfig.favicon ? (
-                    <img
-                      src={siteConfig.favicon}
-                      alt="Favicon atual"
-                      className="w-8 h-8 object-contain"
-                    />
-                  ) : (
-                    <div className="text-center">
-                      <ImageIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-gray-400 text-sm">Nenhum favicon</p>
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFaviconUpload}
-                    className="hidden"
-                    id="favicon-upload"
-                  />
-                  <Button
-                    onClick={() => document.getElementById("favicon-upload")?.click()}
-                    variant="outline"
-                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                  >
-                    <Upload className="w-4 h-4 mr-2" />
-                    Fazer Upload
-                  </Button>
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* Configurações de SEO */}
+      {/* SEO Settings */}
       <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
@@ -512,12 +463,12 @@ export function GeneralSettings() {
         </CardContent>
       </Card>
 
-      {/* Botão de Salvar */}
+      {/* Save Button with Connection Status */}
       <div className="flex justify-end">
         <Button 
           onClick={handleSaveConfig} 
           className="bg-green-600 hover:bg-green-700 text-white px-8"
-          disabled={isSaving}
+          disabled={isSaving || !isOnline}
         >
           {isSaving ? (
             <>
@@ -527,6 +478,8 @@ export function GeneralSettings() {
               </svg>
               Salvando...
             </>
+          ) : !isOnline ? (
+            "Offline - Não é possível salvar"
           ) : (
             <>
               <Save className="w-4 h-4 mr-2" />
