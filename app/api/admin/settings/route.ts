@@ -127,7 +127,7 @@ export async function POST(request: Request) {
       { key: 'seo_google_analytics', value: settings.seoConfig.googleAnalyticsId },
       { key: 'seo_facebook_pixel', value: settings.seoConfig.facebookPixelId },
       { key: 'maintenance_mode', value: settings.maintenanceMode.toString() },
-      { key: 'rtp_value', value: settings.rtpValue.toString() },
+      { key: 'rtp_value', value: settings.rtpValue },
     ]
 
     // Execute all updates in a transaction
