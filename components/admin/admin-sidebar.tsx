@@ -20,7 +20,6 @@ export function AdminSidebar({ currentPage, onPageChange, isOpen, onClose }: Adm
     { id: "transactions", label: "Transações", icon: CreditCard },
     { id: "bonuses", label: "Bônus", icon: Gift },
     { id: "affiliates", label: "Afiliados", icon: UserCheck },
-    { id: "gateway", label: "Gateway", icon: Banknote },
     { id: "settings", label: "Configurações", icon: Settings },
   ]
 

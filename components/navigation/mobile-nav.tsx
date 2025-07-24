@@ -1,6 +1,6 @@
 "use client"
 
-import { Gamepad2, ShoppingCart, Wallet, User } from "lucide-react"
+import { Gamepad2, DollarSign, Wallet, User } from "lucide-react"
 
 interface MobileNavProps {
   isAuthenticated: boolean
@@ -19,14 +19,14 @@ interface MobileNavProps {
  *
  * ÍCONES E NAVEGAÇÃO:
  * - 🎮 Gamepad: Home/Jogos
- * - 🛒 Carrinho: Página do carrinho
- * - 💰 Carteira: Centro, destaque (página da carteira)
+ * - 💰 Dinheiro: Página de depósito
+ * - 🏦 Carteira: Página da carteira (sem destaque)
  * - 👤 Usuário: Configurações
  *
  * REGRAS:
  * - Apenas Home é acessível sem login
  * - Outras páginas requerem autenticação
- * - Carteira tem destaque visual (maior, centro)
+ * - Todos os ícones com estilo consistente
  *
  * DESIGN:
  * - Fundo preto com blur
@@ -59,20 +59,20 @@ export function MobileNav({ isAuthenticated, onAuthRequired, onNavigate }: Mobil
           <Gamepad2 className="w-6 h-6 transition-transform duration-300 hover:rotate-12" />
         </button>
 
-        {/* CARRINHO - Requer autenticação */}
+        {/* DEPÓSITO - Requer autenticação */}
         <button
           className="flex flex-col items-center p-2 text-gray-400 transition-all duration-300 hover:text-gray-200 hover:scale-110 active:scale-95"
-          onClick={() => handleProtectedAction(() => onNavigate("cart"))}
+          onClick={() => handleProtectedAction(() => onNavigate("deposit"))}
         >
-          <ShoppingCart className="w-6 h-6 transition-transform duration-300 hover:rotate-12" />
+          <DollarSign className="w-6 h-6 transition-transform duration-300 hover:rotate-12" />
         </button>
 
-        {/* CARTEIRA - Botão central destacado, requer autenticação */}
+        {/* CARTEIRA - Requer autenticação */}
         <button
-          className="flex items-center justify-center w-12 h-12 bg-green-500 rounded-full -mt-2 transition-all duration-300 hover:bg-green-600 hover:scale-110 active:scale-95 shadow-lg shadow-green-500/25 group"
+          className="flex flex-col items-center p-2 text-gray-400 transition-all duration-300 hover:text-gray-200 hover:scale-110 active:scale-95"
           onClick={() => handleProtectedAction(() => onNavigate("wallet"))}
         >
-          <Wallet className="w-6 h-6 text-white transition-transform duration-300 group-hover:scale-110" />
+          <Wallet className="w-6 h-6 transition-transform duration-300 hover:rotate-12" />
         </button>
 
         {/* CONFIGURAÇÕES - Requer autenticação */}

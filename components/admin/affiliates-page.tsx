@@ -1,82 +1,179 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { UserCheck, DollarSign, TrendingUp, Calendar, Users, Settings } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 
-/**
- * Página de gerenciamento de afiliados
- */
+interface Affiliate {
+  id: string
+  name: string
+  email: string
+  referrals: number
+  totalEarned: number
+  pendingEarned: number
+  joinDate: string
+  status: string
+}
+
+interface AffiliateStats {
+  totalAffiliates: number
+  totalReferrals: number
+  totalEarned: number
+  totalPending: number
+}
+
+interface AffiliateSettings {
+  minDeposit: string
+  cpaValue: string
+}
+
 export function AffiliatesPage() {
+  const { toast } = useToast()
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
-  const [affiliateSettings, setAffiliateSettings] = useState({
+  
+  const [affiliates, setAffiliates] = useState<Affiliate[]>([])
+  const [stats, setStats] = useState<AffiliateStats>({
+    totalAffiliates: 0,
+    totalReferrals: 0,
+    totalEarned: 0,
+    totalPending: 0
+  })
+  
+  const [affiliateSettings, setAffiliateSettings] = useState<AffiliateSettings>({
     minDeposit: "20.00",
-    cpaValue: "5.00",
+    cpaValue: "5.00"
   })
 
-  // Dados simulados - em produção viriam da API
-  const affiliates = [
-    {
-      id: "1",
-      name: "João Silva",
-      email: "joao@email.com",
-      referrals: 15,
-      totalEarned: 75.0,
-      pendingEarned: 25.0,
-      joinDate: "2025-01-10",
-      status: "Ativo",
-    },
-    {
-      id: "2",
-      name: "Maria Santos",
-      email: "maria@email.com",
-      referrals: 28,
-      totalEarned: 140.0,
-      pendingEarned: 40.0,
-      joinDate: "2025-01-05",
-      status: "Ativo",
-    },
-    {
-      id: "3",
-      name: "Carlos Oliveira",
-      email: "carlos@email.com",
-      referrals: 7,
-      totalEarned: 35.0,
-      pendingEarned: 10.0,
-      joinDate: "2025-01-15",
-      status: "Ativo",
-    },
-    {
-      id: "4",
-      name: "Ana Costa",
-      email: "ana@email.com",
-      referrals: 42,
-      totalEarned: 210.0,
-      pendingEarned: 60.0,
-      joinDate: "2024-12-20",
-      status: "Ativo",
-    },
-  ]
+  // Carregar dados ao montar o componente
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const response = await fetch('/api/admin/affiliates')
+        const data = await response.json()
+        
+        if (data.success) {
+          setAffiliates(data.data.affiliates)
+          setStats(data.data.stats)
+          setAffiliateSettings(data.data.settings)
+        } else {
+          toast({
+            title: "Erro",
+            description: "Falha ao carregar afiliados",
+            variant: "destructive",
+          })
+        }
+      } catch (error) {
+        console.error("Error loading affiliates:", error)
+        toast({
+          title: "Erro",
+          description: "Falha ao carregar afiliados",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    loadData()
+  }, [toast])
 
-  const handleUpdateSettings = () => {
-    console.log("Atualizar configurações:", affiliateSettings)
-    // TODO: Implementar API call
-    setShowSettings(false)
+  const handleUpdateSettings = async () => {
+    setIsSaving(true)
+    try {
+      const response = await fetch('/api/admin/affiliates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'update_settings',
+          data: affiliateSettings
+        })
+      })
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        toast({
+          title: "Sucesso",
+          description: result.message,
+        })
+        setShowSettings(false)
+      } else {
+        toast({
+          title: "Erro",
+          description: result.error || "Falha ao atualizar configurações",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error updating settings:", error)
+      toast({
+        title: "Erro",
+        description: "Falha ao atualizar configurações",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  const handlePayAffiliate = (affiliateId: string) => {
-    console.log("Pagar afiliado:", affiliateId)
-    // TODO: Implementar pagamento
+  const handlePayAffiliate = async (affiliateId: string) => {
+    try {
+      const response = await fetch('/api/admin/affiliates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'pay_affiliate',
+          data: { affiliateId }
+        })
+      })
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        toast({
+          title: "Sucesso",
+          description: result.message,
+        })
+        // Recarregar dados para atualizar a lista
+        const refreshResponse = await fetch('/api/admin/affiliates')
+        const refreshData = await refreshResponse.json()
+        if (refreshData.success) {
+          setAffiliates(refreshData.data.affiliates)
+          setStats(refreshData.data.stats)
+        }
+      } else {
+        toast({
+          title: "Erro",
+          description: result.error || "Falha ao processar pagamento",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error paying affiliate:", error)
+      toast({
+        title: "Erro",
+        description: "Falha ao processar pagamento",
+        variant: "destructive",
+      })
+    }
   }
 
-  const totalStats = {
-    totalAffiliates: affiliates.length,
-    totalReferrals: affiliates.reduce((sum, a) => sum + a.referrals, 0),
-    totalEarned: affiliates.reduce((sum, a) => sum + a.totalEarned, 0),
-    totalPending: affiliates.reduce((sum, a) => sum + a.pendingEarned, 0),
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-500"></div>
+      </div>
+    )
   }
 
   return (
@@ -145,7 +242,7 @@ export function AffiliatesPage() {
               <UserCheck className="w-8 h-8 text-blue-400" />
               <div>
                 <p className="text-gray-400 text-sm">Total Afiliados</p>
-                <p className="text-2xl font-bold text-white">{totalStats.totalAffiliates}</p>
+                <p className="text-2xl font-bold text-white">{stats?.totalAffiliates}</p>
               </div>
             </div>
           </CardContent>
@@ -157,7 +254,7 @@ export function AffiliatesPage() {
               <Users className="w-8 h-8 text-green-400" />
               <div>
                 <p className="text-gray-400 text-sm">Total Indicações</p>
-                <p className="text-2xl font-bold text-white">{totalStats.totalReferrals}</p>
+                <p className="text-2xl font-bold text-white">{stats?.totalReferrals}</p>
               </div>
             </div>
           </CardContent>
@@ -170,7 +267,7 @@ export function AffiliatesPage() {
               <div>
                 <p className="text-gray-400 text-sm">Total Pago</p>
                 <p className="text-2xl font-bold text-white">
-                  R$ {totalStats.totalEarned.toFixed(2).replace(".", ",")}
+                  R$ {stats.totalEarned.toFixed(2).replace(".", ",")}
                 </p>
               </div>
             </div>
@@ -184,7 +281,7 @@ export function AffiliatesPage() {
               <div>
                 <p className="text-gray-400 text-sm">Pendente</p>
                 <p className="text-2xl font-bold text-white">
-                  R$ {totalStats.totalPending.toFixed(2).replace(".", ",")}
+                  R$ {stats.totalPending.toFixed(2).replace(".", ",")}
                 </p>
               </div>
             </div>

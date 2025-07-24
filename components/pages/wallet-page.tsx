@@ -301,15 +301,6 @@ export function WalletPage({ onNavigate, onBack, user, onLogout, onAddBalance }:
           Sacar
         </Button>
 
-        {/* BOTÃO ADICIONAR SALDO - APENAS PARA DESENVOLVIMENTO */}
-        {process.env.NODE_ENV === "development" && onAddBalance && (
-          <Button
-            onClick={handleAddBalance}
-            className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-8 py-3 h-12 rounded-xl font-medium transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/25 hover:scale-[1.02] active:scale-[0.98] group"
-          >
-            <Gift className="w-5 h-5 mr-2 group-hover:rotate-12 transition-transform duration-300" />+ R$ 50 Bônus
-          </Button>
-        )}
       </div>
 
       {/* Transaction History */}

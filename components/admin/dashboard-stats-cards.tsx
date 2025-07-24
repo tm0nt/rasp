@@ -1,32 +1,72 @@
-/**
- * Componente para cards de estatísticas do dashboard
- * Implementa Single Responsibility Principle (SRP)
- */
-
 "use client"
 
-import type React from "react"
-
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrendingUp, TrendingDown, Users, CheckCircle, Clock } from "lucide-react"
+import { TrendingUp, TrendingDown, Users, CheckCircle, Clock, Loader } from "lucide-react"
 
-interface DashboardStatsCardsProps {
-  stats: {
-    totalDeposits: number
-    paidDeposits: number
-    totalWithdrawals: number
-    paidWithdrawals: number
-    totalUsers: number
-    activeUsers: number
-    pendingTransactions: number
-    completedTransactions: number
-  }
+interface StatsData {
+  totalDeposits: number
+  paidDeposits: number
+  totalWithdrawals: number
+  paidWithdrawals: number
+  totalUsers: number
+  activeUsers: number
+  pendingTransactions: number
+  completedTransactions: number
 }
 
-/**
- * Componente responsável apenas por renderizar os cards de estatísticas
- */
-export function DashboardStatsCards({ stats }: DashboardStatsCardsProps) {
+export function DashboardStatsCards() {
+  const [stats, setStats] = useState<StatsData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch('/api/admin/overview')
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to fetch stats')
+        }
+
+        setStats(data.stats)
+      } catch (err) {
+        console.error('Error fetching stats:', err)
+        setError(err instanceof Error ? err.message : 'Unknown error')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchStats()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[...Array(8)].map((_, i) => (
+          <Card key={i} className="bg-gray-800 border-2 border-gray-700 h-32 flex items-center justify-center">
+            <Loader className="animate-spin text-gray-400" />
+          </Card>
+        ))}
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-500/10 border-2 border-red-500/30 rounded-lg p-4 text-red-400">
+        Error: {error}
+      </div>
+    )
+  }
+
+  if (!stats) {
+    return null
+  }
+
   const cards = [
     {
       title: "Depósitos Totais",
@@ -103,9 +143,6 @@ export function DashboardStatsCards({ stats }: DashboardStatsCardsProps) {
   )
 }
 
-/**
- * Componente individual para cada card de estatística
- */
 interface StatsCardProps {
   title: string
   value: string

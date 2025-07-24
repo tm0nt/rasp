@@ -1,13 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { PageLayout } from "@/components/layout/page-layout"
-import { Shield, QrCode, Copy } from "lucide-react"
+import { Shield, QrCode, Copy, Clock, AlertCircle } from "lucide-react"
 import { useToast } from "@/contexts/toast-context"
-import QRCode from "react-qr-code"
 
 interface DepositPageProps {
   onBack: () => void
@@ -25,32 +24,36 @@ interface DepositPageProps {
 
 interface PixPaymentData {
   qrcode: string
-  qrcodeText: string
   transactionId: string
   amount: number
   expiration: string
+  qrCodeImage?: string
 }
 
 export function DepositPage({ onBack, user, onLogout, onNavigate }: DepositPageProps) {
   const [selectedAmount, setSelectedAmount] = useState(40)
-  const [customAmount, setCustomAmount] = useState("")
+  const [customAmount, setCustomAmount] = useState("40")
   const [cpf, setCpf] = useState("")
-  const [currentStep, setCurrentStep] = useState<"form" | "pix">("form")
+  const [currentStep, setCurrentStep] = useState<"form" | "pix" | "expired">("form")
   const [isCpfFocused, setIsCpfFocused] = useState(false)
   const [isAmountFocused, setIsAmountFocused] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [pixData, setPixData] = useState<PixPaymentData | null>(null)
+  const [timeLeft, setTimeLeft] = useState(600) // 10 minutes in seconds
   const { showToast } = useToast()
+  const qrCodeCanvasRef = useRef<HTMLCanvasElement>(null)
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   const predefinedAmounts = [20, 40, 80, 160, 200, 400]
 
   const handleAmountSelect = (amount: number) => {
     setSelectedAmount(amount)
-    setCustomAmount("")
+    setCustomAmount(amount.toString())
   }
 
   const handleCustomAmountChange = (value: string) => {
-    setCustomAmount(value)
+    const numericValue = value.replace(/[^0-9.]/g, "")
+    setCustomAmount(numericValue)
     setSelectedAmount(0)
   }
 
@@ -74,9 +77,34 @@ export function DepositPage({ onBack, user, onLogout, onNavigate }: DepositPageP
     setCpf(formattedCPF)
   }
 
+
+
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+    return `${minutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`
+  }
+
+  const getTimerColor = () => {
+    if (timeLeft > 300) return "text-green-400" // > 5 minutes
+    if (timeLeft > 120) return "text-yellow-400" // > 2 minutes
+    return "text-red-400" // < 2 minutes
+  }
+
+  const getTimerBorderColor = () => {
+    if (timeLeft > 300) return "border-green-500/30" // > 5 minutes
+    if (timeLeft > 120) return "border-yellow-500/30" // > 2 minutes
+    return "border-red-500/30" // < 2 minutes
+  }
+
+  const getTimerBgColor = () => {
+    if (timeLeft > 300) return "bg-green-500/10" // > 5 minutes
+    if (timeLeft > 120) return "bg-yellow-500/10" // > 2 minutes
+    return "bg-red-500/10" // < 2 minutes
+  }
+
   const handleGeneratePayment = async () => {
     const amount = getCurrentAmount()
-
     if (amount < 20 || !cpf) {
       showToast({
         type: "error",
@@ -88,34 +116,33 @@ export function DepositPage({ onBack, user, onLogout, onNavigate }: DepositPageP
     }
 
     setIsProcessing(true)
-
     try {
-      const response = await fetch('/api/user/deposit', {
-        method: 'POST',
+      const response = await fetch("/api/user/deposit", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           userId: user.id,
           amount: amount,
-          cpf: cpf.replace(/\D/g, ''),
-        })
+          cpf: cpf.replace(/\D/g, ""),
+        }),
       })
 
       const data = await response.json()
-
       if (!response.ok) {
-        throw new Error(data.message || 'Erro ao gerar PIX')
+        throw new Error(data.message || "Erro ao gerar PIX")
       }
 
-      setPixData({
+      const paymentData = {
         qrcode: data.qrcode,
-        qrcodeText: data.qrcodeText,
         transactionId: data.transactionId,
         amount: amount,
-        expiration: data.expiration
-      })
+        expiration: data.expiration,
+      }
 
+      setPixData(paymentData)
+      setTimeLeft(600) // Reset timer to 10 minutes
       setCurrentStep("pix")
 
       showToast({
@@ -124,7 +151,6 @@ export function DepositPage({ onBack, user, onLogout, onNavigate }: DepositPageP
         message: `PIX de R$ ${amount.toFixed(2)} gerado com sucesso.`,
         duration: 5000,
       })
-
     } catch (error) {
       console.error("Payment generation error:", error)
       showToast({
@@ -140,10 +166,16 @@ export function DepositPage({ onBack, user, onLogout, onNavigate }: DepositPageP
 
   const handlePaymentBack = () => {
     setCurrentStep("form")
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+    }
   }
 
   const handlePaymentSuccess = async () => {
     const amount = getCurrentAmount()
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+    }
 
     showToast({
       type: "success",
@@ -157,9 +189,80 @@ export function DepositPage({ onBack, user, onLogout, onNavigate }: DepositPageP
     }, 2000)
   }
 
+  const handleTimerExpired = () => {
+    setCurrentStep("expired")
+    showToast({
+      type: "error",
+      title: "⏰ PIX expirado",
+      message: "O tempo para pagamento expirou. Gere um novo PIX.",
+      duration: 6000,
+    })
+  }
+
+  // Timer effect
+  useEffect(() => {
+    if (currentStep === "pix" && timeLeft > 0) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            handleTimerExpired()
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+
+      return () => {
+        if (timerRef.current) {
+          clearInterval(timerRef.current)
+        }
+      }
+    }
+  }, [currentStep, timeLeft])
+
+  // Payment status check effect
+  useEffect(() => {
+    if (currentStep !== "pix" || !pixData?.transactionId) return
+
+    const checkPaymentStatus = async () => {
+      try {
+        const response = await fetch(`/api/user/deposit/${pixData.transactionId}`)
+        const data = await response.json()
+        if (data.paid) {
+          handlePaymentSuccess()
+        }
+      } catch (error) {
+        console.error("Error checking payment status:", error)
+      }
+    }
+
+    const interval = setInterval(checkPaymentStatus, 5000)
+    return () => clearInterval(interval)
+  }, [currentStep, pixData])
+
+  const ExpiredScreen = () => (
+    <div className="max-w-md mx-auto">
+      <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm">
+        <CardContent className="p-6 text-center">
+          <div className="mb-6">
+            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 text-red-400" />
+            </div>
+            <h3 className="text-white text-xl font-bold mb-2">PIX Expirado</h3>
+            <p className="text-gray-400">O tempo para pagamento expirou.</p>
+          </div>
+
+          <Button onClick={() => setCurrentStep("form")} className="w-full bg-green-600 hover:bg-green-700 text-white">
+            Gerar novo PIX
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
+
   const PixPaymentScreen = () => {
     const handleCopyCode = () => {
-      navigator.clipboard.writeText(pixData?.qrcodeText || '')
+      navigator.clipboard.writeText(pixData?.qrcode || "")
       showToast({
         type: "success",
         title: "Copiado!",
@@ -174,36 +277,56 @@ export function DepositPage({ onBack, user, onLogout, onNavigate }: DepositPageP
           <CardContent className="p-6">
             <div className="text-center mb-6">
               <h3 className="text-white text-xl font-bold mb-2">Pagamento via PIX</h3>
-              <p className="text-gray-400">Valor: <span className="text-green-400 font-semibold">R$ {pixData?.amount.toFixed(2)}</span></p>
+              <p className="text-gray-400">
+                Valor: <span className="text-green-400 font-semibold">R$ {pixData?.amount.toFixed(2)}</span>
+              </p>
             </div>
 
-            <div className="bg-white p-4 rounded-lg mb-6 flex justify-center">
-              <QRCode 
-                value={pixData?.qrcode || ''} 
-                size={200}
-                level="H"
-              />
+            {/* Timer */}
+            <div
+              className={`mb-6 p-4 rounded-xl border ${getTimerBorderColor()} ${getTimerBgColor()} backdrop-blur-sm`}
+            >
+              <div className="flex items-center justify-center gap-3">
+                <Clock className={`w-5 h-5 ${getTimerColor()}`} />
+                <div className="text-center">
+                  <p className="text-gray-300 text-sm">Tempo restante</p>
+                  <p className={`text-2xl font-bold font-mono ${getTimerColor()}`}>{formatTime(timeLeft)}</p>
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              <div className="mt-3 w-full bg-gray-700 rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full transition-all duration-1000 ${
+                    timeLeft > 300 ? "bg-green-500" : timeLeft > 120 ? "bg-yellow-500" : "bg-red-500"
+                  }`}
+                  style={{ width: `${(timeLeft / 600) * 100}%` }}
+                />
+              </div>
             </div>
 
+            {/* QR Code */}
+            <div className="p-6 rounded-xl  mb-6 flex justify-center shadow-lg">
+  <img 
+    src={`https://quickchart.io/qr?text=${(pixData?.qrcode || '')}&size=300`}
+    alt="QR Code para pagamento PIX"
+    width="300"
+    height="300"
+    className="rounded-lg"
+  />            </div>
+
+            {/* PIX Code */}
             <div className="mb-6">
               <p className="text-gray-300 text-sm mb-2">Código PIX (copie e cole no seu banco):</p>
               <div className="relative">
-                <Input
-                  value={pixData?.qrcodeText || ''}
-                  readOnly
-                  className="bg-gray-800 text-gray-200 pr-10"
-                />
+                <Input value={pixData?.qrcode || ""} readOnly className="bg-gray-800 text-gray-200 pr-10 text-xs" />
                 <button
                   onClick={handleCopyCode}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
                 >
                   <Copy className="w-5 h-5" />
                 </button>
               </div>
-            </div>
-
-            <div className="text-center text-sm text-gray-400 mb-6">
-              <p>Expira em: {new Date(pixData?.expiration || '').toLocaleString() || '30 minutos'}</p>
             </div>
 
             <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 mb-6">
@@ -213,22 +336,31 @@ export function DepositPage({ onBack, user, onLogout, onNavigate }: DepositPageP
             </div>
 
             <div className="flex gap-3">
-              <Button
-                onClick={handlePaymentBack}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white"
-              >
+              <Button onClick={handlePaymentBack} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white">
                 Voltar
               </Button>
-              <Button
-                onClick={handlePaymentSuccess}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-              >
+              <Button onClick={handlePaymentSuccess} className="flex-1 bg-green-600 hover:bg-green-700 text-white">
                 Já paguei
               </Button>
             </div>
           </CardContent>
         </Card>
       </div>
+    )
+  }
+
+  if (currentStep === "expired") {
+    return (
+      <PageLayout
+        title="PIX Expirado"
+        showBackButton
+        onBack={() => setCurrentStep("form")}
+        user={user}
+        onLogout={onLogout}
+        onNavigate={onNavigate}
+      >
+        <ExpiredScreen />
+      </PageLayout>
     )
   }
 
@@ -267,9 +399,7 @@ export function DepositPage({ onBack, user, onLogout, onNavigate }: DepositPageP
             <div className="mb-8">
               <h3 className="text-white text-lg font-semibold mb-6">Método de pagamento</h3>
               <div className="grid grid-cols-1 gap-4">
-                <button
-                  className="relative flex items-center justify-center gap-3 p-6 rounded-xl border-2 border-green-500 bg-green-500/10 text-green-400 shadow-lg shadow-green-500/20"
-                >
+                <button className="relative flex items-center justify-center gap-3 p-6 rounded-xl border-2 border-green-500 bg-green-500/10 text-green-400 shadow-lg shadow-green-500/20">
                   <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 via-transparent to-green-500/10 animate-pulse" />
                   <QrCode className="w-6 h-6 relative z-10" />
                   <div className="text-left relative z-10">
@@ -313,7 +443,6 @@ export function DepositPage({ onBack, user, onLogout, onNavigate }: DepositPageP
 
             <div className="mb-8">
               <h3 className="text-white text-lg font-semibold mb-6">Digite ou selecione o valor</h3>
-
               <div className="grid grid-cols-3 gap-3 mb-6">
                 {predefinedAmounts.map((amount) => (
                   <Button
@@ -343,7 +472,7 @@ export function DepositPage({ onBack, user, onLogout, onNavigate }: DepositPageP
                   R$
                 </span>
                 <Input
-                  type="number"
+                  type="text"
                   placeholder="40"
                   value={customAmount}
                   onChange={(e) => handleCustomAmountChange(e.target.value)}
@@ -360,13 +489,11 @@ export function DepositPage({ onBack, user, onLogout, onNavigate }: DepositPageP
                     rounded-xl
                     ${isAmountFocused ? "ring-2 ring-green-400/30" : ""}
                   `}
-                  min="20"
                 />
                 {isAmountFocused && (
                   <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-green-400/20 via-transparent to-green-400/20 animate-pulse pointer-events-none" />
                 )}
               </div>
-
               <div className="flex justify-start text-sm text-gray-400 mt-3">
                 <span>Mínimo: R$ 20,00</span>
               </div>

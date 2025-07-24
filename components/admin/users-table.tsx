@@ -5,26 +5,22 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ServiceFactory } from "@/factories/service.factory"
 import { UsersTableFilters } from "./users-table-filters"
 import { UsersTableContent } from "./users-table-content"
+import { UserViewModal } from "./user-view-modal"
+import { UserEditModal } from "./user-edit-modal"
+import { ConfirmationModal } from "@/components/modals/confirmation-modal"
+import { toast } from "@/components/ui/use-toast"
 import type { IUser } from "@/types/admin"
 import type { IUserService } from "@/interfaces/admin-services"
 
-/**
- * Componente refatorado para tabela de usuários
- * Implementa Single Responsibility Principle (SRP)
- */
-
-/**
- * Componente principal da tabela de usuários
- * Responsável apenas por gerenciar estado e orquestrar sub-componentes
- */
 export function UsersTable() {
   const [users, setUsers] = useState<IUser[]>([])
   const [filteredUsers, setFilteredUsers] = useState<IUser[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
+  const [selectedUser, setSelectedUser] = useState<IUser | null>(null)
+  const [modalType, setModalType] = useState<"view" | "edit" | "delete" | null>(null)
 
-  // Injeta dependência do serviço de usuários
   const userService: IUserService = ServiceFactory.getUserService()
 
   useEffect(() => {
@@ -35,9 +31,6 @@ export function UsersTable() {
     applyFilters()
   }, [users, searchTerm, filterStatus])
 
-  /**
-   * Carrega lista de usuários
-   */
   const loadUsers = async (): Promise<void> => {
     try {
       setIsLoading(true)
@@ -45,26 +38,28 @@ export function UsersTable() {
       setUsers(usersData)
     } catch (error) {
       console.error("Erro ao carregar usuários:", error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os usuários",
+        variant: "destructive"
+      })
     } finally {
       setIsLoading(false)
     }
   }
 
-  /**
-   * Aplica filtros aos usuários
-   */
   const applyFilters = async (): Promise<void> => {
     try {
       let filtered = [...users]
 
-      // Aplica filtro de busca
       if (searchTerm) {
         filtered = await userService.searchUsers(searchTerm)
       }
 
-      // Aplica filtro de status
       if (filterStatus !== "all") {
-        filtered = filtered.filter((user) => user.status.toLowerCase() === filterStatus.toLowerCase())
+        filtered = filtered.filter((user) => 
+          user.status.toLowerCase() === filterStatus.toLowerCase()
+        )
       }
 
       setFilteredUsers(filtered)
@@ -74,29 +69,82 @@ export function UsersTable() {
     }
   }
 
-  /**
-   * Manipula ações dos usuários
-   */
   const handleUserAction = async (action: string, userId: string): Promise<void> => {
     try {
+      const user = users.find(u => u.id === userId)
+      if (!user) return
+
+      setSelectedUser(user)
+
       switch (action) {
         case "view":
-          console.log("Visualizar usuário:", userId)
-          // TODO: Implementar modal de visualização
+          setModalType("view")
           break
         case "edit":
-          console.log("Editar usuário:", userId)
-          // TODO: Implementar modal de edição
+          setModalType("edit")
           break
         case "delete":
-          const success = await userService.deleteUser(userId)
-          if (success) {
-            await loadUsers() // Recarrega a lista
-          }
+          setModalType("delete")
           break
       }
     } catch (error) {
       console.error(`Erro ao executar ação ${action}:`, error)
+      toast({
+        title: "Erro",
+        description: `Não foi possível ${action === "view" ? "visualizar" : action === "edit" ? "editar" : "excluir"} o usuário`,
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleEditSubmit = async (updatedUser: Partial<IUser>) => {
+    if (!selectedUser) return
+
+    try {
+      const result = await userService.updateUser(selectedUser.id, updatedUser)
+      
+      setUsers(users.map(user => 
+        user.id === selectedUser.id ? { ...user, ...result } : user
+      ))
+
+      toast({
+        title: "Sucesso",
+        description: "Usuário atualizado com sucesso",
+      })
+
+      setModalType(null)
+    } catch (error) {
+      console.error("Erro ao atualizar usuário:", error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar o usuário",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedUser) return
+
+    try {
+      const success = await userService.deleteUser(selectedUser.id)
+      
+      if (success) {
+        setUsers(users.filter(user => user.id !== selectedUser.id))
+        toast({
+          title: "Sucesso",
+          description: "Usuário desativado com sucesso",
+        })
+      }
+
+      setModalType(null)
+    } catch (error) {
+      console.error("Erro ao desativar usuário:", error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível desativar o usuário",
+        variant: "destructive"
+      })
     }
   }
 
@@ -115,14 +163,39 @@ export function UsersTable() {
         onStatusChange={setFilterStatus}
       />
 
-      <UsersTableContent users={filteredUsers} onUserAction={handleUserAction} />
+      <UsersTableContent 
+        users={filteredUsers} 
+        onUserAction={handleUserAction} 
+      />
+
+      {/* Modais */}
+      {modalType === "view" && selectedUser && (
+        <UserViewModal
+          user={selectedUser}
+          onClose={() => setModalType(null)}
+        />
+      )}
+
+      {modalType === "edit" && selectedUser && (
+        <UserEditModal
+          user={selectedUser}
+          onClose={() => setModalType(null)}
+          onSubmit={handleEditSubmit}
+        />
+      )}
+
+      {modalType === "delete" && selectedUser && (
+        <ConfirmationModal
+          title="Confirmar Desativação"
+          description={`Tem certeza que deseja desativar o usuário ${selectedUser.name}?`}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setModalType(null)}
+        />
+      )}
     </div>
   )
 }
 
-/**
- * Componente para cabeçalho da tabela
- */
 function UsersTableHeader() {
   return (
     <div>
@@ -132,9 +205,6 @@ function UsersTableHeader() {
   )
 }
 
-/**
- * Componente para estado de carregamento
- */
 function UsersTableLoadingState() {
   return (
     <div className="space-y-6">

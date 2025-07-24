@@ -8,7 +8,6 @@ import { UsersTable } from "./users-table"
 import { TransactionsTable } from "./transactions-table"
 import { BonusesPage } from "./bonuses-page"
 import { AffiliatesPage } from "./affiliates-page"
-import { GatewaySettings } from "./gateway-settings"
 import { GeneralSettings } from "./general-settings"
 
 type AdminPage = "dashboard" | "users" | "transactions" | "bonuses" | "affiliates" | "gateway" | "settings"
@@ -42,8 +41,6 @@ export function AdminDashboard({ admin, onLogout }: AdminDashboardProps) {
         return <BonusesPage />
       case "affiliates":
         return <AffiliatesPage />
-      case "gateway":
-        return <GatewaySettings />
       case "settings":
         return <GeneralSettings />
       default:

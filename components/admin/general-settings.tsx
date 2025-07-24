@@ -1,65 +1,206 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Globe, Upload, Save, ImageIcon, Link, FileText } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 
 /**
  * Página de configurações gerais do sistema
  */
 export function GeneralSettings() {
+  const { toast } = useToast()
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  
   const [siteConfig, setSiteConfig] = useState({
-    siteName: "Raspou Ganhou",
-    siteUrl: "https://raspouganhou.com.br",
-    siteDescription: "A maior plataforma de raspadinhas online do Brasil",
-    logo: "/images/logo.png",
-    favicon: "/favicon.ico",
-    supportEmail: "suporte@raspouganhou.com.br",
-    supportPhone: "(11) 99999-9999",
+    siteName: "",
+    siteUrl: "",
+    siteDescription: "",
+    logo: "",
+    favicon: "",
+    supportEmail: "",
+    supportPhone: "",
   })
 
   const [seoConfig, setSeoConfig] = useState({
-    metaTitle: "Raspou Ganhou - A Maior Plataforma de Raspadinhas do Brasil",
-    metaDescription:
-      "Jogue raspadinhas online e ganhe prêmios incríveis! PIX na conta, eletrônicos, veículos e muito mais.",
-    metaKeywords: "raspadinha, jogos online, prêmios, PIX, sorte, ganhar dinheiro",
-    googleAnalyticsId: "GA-XXXXXXXXX",
-    facebookPixelId: "FB-XXXXXXXXX",
+    metaTitle: "",
+    metaDescription: "",
+    metaKeywords: "",
+    googleAnalyticsId: "",
+    facebookPixelId: "",
   })
 
   const [maintenanceMode, setMaintenanceMode] = useState(false)
 
-  const handleSaveConfig = () => {
-    console.log("Salvar configurações:", { siteConfig, seoConfig, maintenanceMode })
-    // TODO: Implementar API call
-    alert("Configurações salvas com sucesso!")
-  }
+  // Carregar configurações ao montar o componente
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const response = await fetch('/api/admin/settings')
+        const data = await response.json()
+        
+        if (data.success) {
+          setSiteConfig(data.data.siteConfig)
+          setSeoConfig(data.data.seoConfig)
+          setMaintenanceMode(data.data.maintenanceMode)
+        } else {
+          toast({
+            title: "Erro",
+            description: "Falha ao carregar configurações",
+            variant: "destructive",
+          })
+        }
+      } catch (error) {
+        console.error("Error loading settings:", error)
+        toast({
+          title: "Erro",
+          description: "Falha ao carregar configurações",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    loadSettings()
+  }, [toast])
 
-  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      // TODO: Implementar upload de arquivo
-      console.log("Upload de logo:", file)
-      // Simular URL do arquivo
-      const newLogoUrl = URL.createObjectURL(file)
-      setSiteConfig({ ...siteConfig, logo: newLogoUrl })
+  const handleSaveConfig = async () => {
+    setIsSaving(true)
+    try {
+      const response = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          settings: {
+            siteConfig,
+            seoConfig,
+            maintenanceMode
+          }
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        toast({
+          title: "Sucesso",
+          description: "Configurações salvas com sucesso!",
+        })
+      } else {
+        toast({
+          title: "Erro",
+          description: data.error || "Falha ao salvar configurações",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error saving settings:", error)
+      toast({
+        title: "Erro",
+        description: "Falha ao salvar configurações",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
     }
   }
 
-  const handleFaviconUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
-      // TODO: Implementar upload de arquivo
-      console.log("Upload de favicon:", file)
-      const newFaviconUrl = URL.createObjectURL(file)
-      setSiteConfig({ ...siteConfig, favicon: newFaviconUrl })
+      try {
+        // Criar FormData para upload
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('type', 'logo')
+        
+        const response = await fetch('/api/admin/upload', {
+          method: 'POST',
+          body: formData,
+        })
+        
+        const data = await response.json()
+        
+        if (data.success) {
+          setSiteConfig({ ...siteConfig, logo: data.fileUrl })
+          toast({
+            title: "Sucesso",
+            description: "Logo atualizado com sucesso!",
+          })
+        } else {
+          toast({
+            title: "Erro",
+            description: data.error || "Falha ao fazer upload do logo",
+            variant: "destructive",
+          })
+        }
+      } catch (error) {
+        console.error("Error uploading logo:", error)
+        toast({
+          title: "Erro",
+          description: "Falha ao fazer upload do logo",
+          variant: "destructive",
+        })
+      }
     }
   }
+
+  const handleFaviconUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      try {
+        // Criar FormData para upload
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('type', 'favicon')
+        
+        const response = await fetch('/api/admin/upload', {
+          method: 'POST',
+          body: formData,
+        })
+        
+        const data = await response.json()
+        
+        if (data.success) {
+          setSiteConfig({ ...siteConfig, favicon: data.fileUrl })
+          toast({
+            title: "Sucesso",
+            description: "Favicon atualizado com sucesso!",
+          })
+        } else {
+          toast({
+            title: "Erro",
+            description: data.error || "Falha ao fazer upload do favicon",
+            variant: "destructive",
+          })
+        }
+      } catch (error) {
+        console.error("Error uploading favicon:", error)
+        toast({
+          title: "Erro",
+          description: "Falha ao fazer upload do favicon",
+          variant: "destructive",
+        })
+      }
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-500"></div>
+      </div>
+    )
+  }
+
 
   return (
     <div className="space-y-6">

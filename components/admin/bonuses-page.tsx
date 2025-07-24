@@ -1,101 +1,162 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, Gift, DollarSign, TrendingUp, Calendar, Users } from "lucide-react"
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Gift,
+  DollarSign,
+  TrendingUp,
+  Calendar,
+  Users,
+} from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 
-/**
- * Página de gerenciamento de bônus
- */
 export function BonusesPage() {
   const [showAddForm, setShowAddForm] = useState(false)
-  const [newBonus, setNewBonus] = useState({
-    name: "",
-    value: "",
-    minDeposit: "",
-  })
+  const [bonuses, setBonuses] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [newBonus, setNewBonus] = useState({ name: "", value: "", minDeposit: "" })
 
-  // Dados simulados - em produção viriam da API
-  const bonuses = [
-    {
-      id: "1",
-      name: "Bônus de Boas-vindas",
-      value: 50.0,
-      minDeposit: 20.0,
-      isActive: true,
-      createdAt: "2025-01-15",
-      usedCount: 125,
-    },
-    {
-      id: "2",
-      name: "Bônus de Recarga",
-      value: 25.0,
-      minDeposit: 50.0,
-      isActive: true,
-      createdAt: "2025-01-10",
-      usedCount: 87,
-    },
-    {
-      id: "3",
-      name: "Bônus VIP",
-      value: 100.0,
-      minDeposit: 200.0,
-      isActive: false,
-      createdAt: "2025-01-08",
-      usedCount: 15,
-    },
-    {
-      id: "4",
-      name: "Bônus Fim de Semana",
-      value: 30.0,
-      minDeposit: 0.0,
-      isActive: true,
-      createdAt: "2025-01-05",
-      usedCount: 203,
-    },
-  ]
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editBonus, setEditBonus] = useState(null)
 
-  const handleAddBonus = () => {
-    if (newBonus.name && newBonus.value) {
-      console.log("Adicionar bônus:", newBonus)
-      // TODO: Implementar API call
-      setNewBonus({ name: "", value: "", minDeposit: "" })
-      setShowAddForm(false)
+  const fetchBonuses = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch("/api/admin/bonuses")
+      if (!response.ok) throw new Error("Erro ao buscar bônus")
+      const data = await response.json()
+      setBonuses(data.bonuses || [])
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleEditBonus = (bonusId: string) => {
-    console.log("Editar bônus:", bonusId)
-    // TODO: Implementar modal de edição
+  useEffect(() => {
+    fetchBonuses()
+  }, [])
+
+  const handleAddBonus = async () => {
+    if (newBonus.name && newBonus.value) {
+      try {
+        const response = await fetch("/api/admin/bonuses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: newBonus.name,
+            value: parseFloat(newBonus.value),
+            minDeposit: parseFloat(newBonus.minDeposit || 0),
+          }),
+        })
+        if (!response.ok) throw new Error("Erro ao adicionar bônus")
+        setNewBonus({ name: "", value: "", minDeposit: "" })
+        setShowAddForm(false)
+        fetchBonuses()
+      } catch (err) {
+        setError(err.message)
+      }
+    }
   }
 
-  const handleDeleteBonus = (bonusId: string) => {
-    console.log("Deletar bônus:", bonusId)
-    // TODO: Implementar confirmação e exclusão
+  const handleEditBonus = (bonus) => {
+    setEditBonus(bonus)
+    setEditModalOpen(true)
   }
 
-  const handleToggleStatus = (bonusId: string) => {
-    console.log("Alternar status do bônus:", bonusId)
-    // TODO: Implementar toggle de status
+  const submitEditBonus = async () => {
+    try {
+      const response = await fetch("/api/admin/bonuses", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editBonus.id,
+          name: editBonus.name,
+          value: parseFloat(editBonus.value),
+          minDeposit: parseFloat(editBonus.minDeposit || 0),
+          isActive: editBonus.isActive,
+        }),
+      })
+      if (!response.ok) throw new Error("Erro ao editar bônus")
+      setEditModalOpen(false)
+      setEditBonus(null)
+      fetchBonuses()
+    } catch (err) {
+      setError(err.message)
+    }
   }
+
+  const handleDeleteBonus = async (bonusId) => {
+    if (confirm("Confirmar exclusão?")) {
+      try {
+        const response = await fetch("/api/admin/bonuses", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: bonusId }),
+        })
+        if (!response.ok) throw new Error("Erro ao deletar bônus")
+        fetchBonuses()
+      } catch (err) {
+        setError(err.message)
+      }
+    }
+  }
+
+  const handleToggleStatus = async (bonus) => {
+    try {
+      const response = await fetch("/api/admin/bonuses", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: bonus.id,
+          name: bonus.name,
+          value: parseFloat(bonus.value),
+          minDeposit: parseFloat(bonus.minDeposit),
+          isActive: !bonus.isActive,
+        }),
+      })
+      if (!response.ok) throw new Error("Erro ao alternar status")
+      fetchBonuses()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  if (loading) return <p>Carregando...</p>
+  if (error) return <p>Erro: {error}</p>
 
   return (
     <div className="space-y-6">
+      {/* Título */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white mb-2">Bônus</h1>
           <p className="text-gray-400">Gerencie bônus e promoções</p>
         </div>
-        <Button onClick={() => setShowAddForm(!showAddForm)} className="bg-green-600 hover:bg-green-700 text-white">
+        <Button
+          onClick={() => setShowAddForm(!showAddForm)}
+          className="bg-green-600 hover:bg-green-700 text-white"
+        >
           <Plus className="w-4 h-4 mr-2" />
           Adicionar Bônus
         </Button>
       </div>
 
-      {/* Formulário de Adicionar Bônus */}
+      {/* Formulário de novo bônus */}
       {showAddForm && (
         <Card className="bg-gray-800 border-gray-700">
           <CardHeader>
@@ -103,41 +164,34 @@ export function BonusesPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-gray-300 text-sm font-medium mb-2">Nome do Bônus</label>
-                <Input
-                  placeholder="Ex: Bônus de Boas-vindas"
-                  value={newBonus.name}
-                  onChange={(e) => setNewBonus({ ...newBonus, name: e.target.value })}
-                  className="bg-gray-700 border-gray-600 text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-300 text-sm font-medium mb-2">Valor do Bônus (R$)</label>
-                <Input
-                  type="number"
-                  placeholder="50.00"
-                  value={newBonus.value}
-                  onChange={(e) => setNewBonus({ ...newBonus, value: e.target.value })}
-                  className="bg-gray-700 border-gray-600 text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-300 text-sm font-medium mb-2">Depósito Mínimo (R$)</label>
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  value={newBonus.minDeposit}
-                  onChange={(e) => setNewBonus({ ...newBonus, minDeposit: e.target.value })}
-                  className="bg-gray-700 border-gray-600 text-white"
-                />
-              </div>
+              <Input
+                placeholder="Nome"
+                value={newBonus.name}
+                onChange={(e) => setNewBonus({ ...newBonus, name: e.target.value })}
+                className="bg-gray-700 text-white"
+              />
+              <Input
+                type="number"
+                placeholder="Valor"
+                value={newBonus.value}
+                onChange={(e) => setNewBonus({ ...newBonus, value: e.target.value })}
+                className="bg-gray-700 text-white"
+              />
+              <Input
+                type="number"
+                placeholder="Depósito Mínimo"
+                value={newBonus.minDeposit}
+                onChange={(e) =>
+                  setNewBonus({ ...newBonus, minDeposit: e.target.value })
+                }
+                className="bg-gray-700 text-white"
+              />
             </div>
             <div className="flex gap-4 mt-6">
               <Button onClick={handleAddBonus} className="bg-green-600 hover:bg-green-700">
                 Salvar Bônus
               </Button>
-              <Button variant="outline" onClick={() => setShowAddForm(false)} className="border-gray-600 text-gray-300">
+              <Button variant="outline" onClick={() => setShowAddForm(false)}>
                 Cancelar
               </Button>
             </div>
@@ -145,7 +199,7 @@ export function BonusesPage() {
         </Card>
       )}
 
-      {/* Lista de Bônus */}
+      {/* Lista de bônus */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {bonuses.map((bonus) => (
           <Card key={bonus.id} className="bg-gray-800 border-gray-700">
@@ -169,27 +223,22 @@ export function BonusesPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {/* Valor do Bônus */}
                 <div className="flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-green-400" />
-                  <span className="text-white font-medium">R$ {bonus.value.toFixed(2).replace(".", ",")}</span>
+                  <span className="text-white font-medium">
+                    R$ {parseFloat(bonus.value).toFixed(2).replace(".", ",")}
+                  </span>
                 </div>
-
-                {/* Depósito Mínimo */}
                 <div className="flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-blue-400" />
                   <span className="text-gray-300 text-sm">
-                    Depósito mín: R$ {bonus.minDeposit.toFixed(2).replace(".", ",")}
+                    Depósito mín: R$ {parseFloat(bonus.minDeposit).toFixed(2).replace(".", ",")}
                   </span>
                 </div>
-
-                {/* Data de Criação */}
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-gray-400" />
                   <span className="text-gray-300 text-sm">Criado em: {bonus.createdAt}</span>
                 </div>
-
-                {/* Uso */}
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-purple-400" />
                   <span className="text-gray-300 text-sm">Usado {bonus.usedCount} vezes</span>
@@ -200,7 +249,7 @@ export function BonusesPage() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => handleToggleStatus(bonus.id)}
+                    onClick={() => handleToggleStatus(bonus)}
                     className="text-blue-400 hover:bg-blue-500/20"
                   >
                     {bonus.isActive ? "Desativar" : "Ativar"}
@@ -208,7 +257,7 @@ export function BonusesPage() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => handleEditBonus(bonus.id)}
+                    onClick={() => handleEditBonus(bonus)}
                     className="text-yellow-400 hover:bg-yellow-500/20"
                   >
                     <Edit className="w-4 h-4" />
@@ -227,6 +276,55 @@ export function BonusesPage() {
           </Card>
         ))}
       </div>
+
+      {/* Modal de Edição */}
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent className="bg-gray-900 text-white">
+          <DialogHeader>
+            <DialogTitle>Editar Bônus</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              value={editBonus?.name || ""}
+              onChange={(e) =>
+                setEditBonus({ ...editBonus, name: e.target.value })
+              }
+              placeholder="Nome"
+              className="bg-gray-700 text-white"
+            />
+            <Input
+              type="number"
+              value={editBonus?.value || ""}
+              onChange={(e) =>
+                setEditBonus({ ...editBonus, value: e.target.value })
+              }
+              placeholder="Valor"
+              className="bg-gray-700 text-white"
+            />
+            <Input
+              type="number"
+              value={editBonus?.minDeposit || ""}
+              onChange={(e) =>
+                setEditBonus({ ...editBonus, minDeposit: e.target.value })
+              }
+              placeholder="Depósito Mínimo"
+              className="bg-gray-700 text-white"
+            />
+          </div>
+          <DialogFooter className="pt-4">
+            <Button onClick={submitEditBonus} className="bg-green-600">
+              Salvar
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setEditModalOpen(false)}
+              className="text-white border-gray-600"
+            >
+              Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

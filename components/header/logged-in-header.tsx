@@ -115,17 +115,6 @@ export function LoggedInHeader({ user, onLogout, onNavigate, onAddBalance }: Log
         Depositar
       </Button>
 
-      {/* BOTÃO ADICIONAR SALDO - APENAS PARA DESENVOLVIMENTO */}
-      {process.env.NODE_ENV === "development" && (
-        <Button
-          id="add-balance-btn"
-          onClick={handleAddBalance}
-          className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/25 hover:scale-105 active:scale-95 group"
-        >
-          <Gift className="w-4 h-4 mr-2 transition-transform duration-300 group-hover:scale-110" />+ R$ 50
-        </Button>
-      )}
-
       {/* DROPDOWN DO PERFIL */}
       <div className="relative">
         <button

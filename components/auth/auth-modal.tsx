@@ -38,13 +38,28 @@ export function AuthModal({ isOpen, onClose, initialTab = "login" }: AuthModalPr
   const { formData, updateField, resetForm } = useAuthForm()
   const { showToast } = useToast()
 
-  const onAuthSuccess = async (formData: any, isRegister: boolean) => {
+const onAuthSuccess = async (formData: any, isRegister: boolean) => {
+  // Para login, envia apenas o método selecionado
+  const credentials = isRegister 
+    ? formData // Para registro, envia todos os campos
+    : {
+        ...formData,
+        // Remove o campo não utilizado
+        email: formData.email || null,
+        phone: formData.phone || null
+      };
+
   const res = await signIn('credentials', {
-    ...formData,
+    ...credentials,
     action: isRegister ? 'register' : 'login',
     redirect: false,
   });
-  return { success: !res?.error, error: res?.error, user: res?.ok ? { /* fetch user data if needed */ } : null };
+  
+  return { 
+    success: !res?.error, 
+    error: res?.error, 
+    user: res?.ok ? { /* fetch user data if needed */ } : null 
+  };
 };
 
   // Manage body scroll when modal is open

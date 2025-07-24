@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { IconInput } from "@/components/ui/icon-input"
@@ -11,8 +10,8 @@ import { LoginMethodTabs } from "./login-method-tabs"
 import { Mail, Phone } from "lucide-react"
 
 interface LoginFormData {
-  email: string
-  phone: string
+  email?: string
+  phone?: string
   password: string
   rememberMe: boolean
 }
@@ -26,14 +25,6 @@ interface LoginFormProps {
   isLoading: boolean
 }
 
-/**
- * Login form component with email/phone toggle
- * Features:
- * - Dynamic login method selection
- * - Form validation
- * - Remember me functionality
- * - Forgot password integration
- */
 export function LoginForm({
   formData,
   onFormDataChange,
@@ -44,25 +35,32 @@ export function LoginForm({
 }: LoginFormProps) {
   const [loginMethod, setLoginMethod] = useState<"email" | "phone">("email")
 
+  // Limpa o campo não utilizado quando troca o método
+  const handleMethodChange = (method: "email" | "phone") => {
+    if (method === "email") {
+      onFormDataChange("phone", "")
+    } else {
+      onFormDataChange("email", "")
+    }
+    setLoginMethod(method)
+  }
+
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       <p className="text-gray-300 text-sm">Acesse sua conta com suas credenciais</p>
 
-      {/* Login method selection */}
-      <LoginMethodTabs activeMethod={loginMethod} onMethodChange={setLoginMethod} />
+      <LoginMethodTabs activeMethod={loginMethod} onMethodChange={handleMethodChange} />
 
       <div className="space-y-4">
-        {/* Dynamic email/phone input */}
         <IconInput
           icon={loginMethod === "email" ? Mail : Phone}
           type={loginMethod === "email" ? "email" : "tel"}
           placeholder={loginMethod === "email" ? "E-mail" : "Telefone"}
-          value={loginMethod === "email" ? formData.email : formData.phone}
+          value={loginMethod === "email" ? formData.email || "" : formData.phone || ""}
           onChange={(value) => onFormDataChange(loginMethod === "email" ? "email" : "phone", value)}
           required
         />
 
-        {/* Password input */}
         <PasswordInput
           placeholder="Digite sua senha"
           value={formData.password}

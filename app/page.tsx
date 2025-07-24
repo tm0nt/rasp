@@ -360,7 +360,7 @@ function RaspouGanhouApp() {
     return <DeliveriesPage onBack={goBack} user={user} onLogout={logout} onNavigate={handleNavigate} />
   }
 
-  if (currentPage === "refer-earn" && isAuthenticated && user) {
+  if (currentPage === "refer" && isAuthenticated && user) {
     return <ReferEarnPage onBack={goBack} user={user} onLogout={logout} onNavigate={handleNavigate} />
   }
 

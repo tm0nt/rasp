@@ -8,35 +8,98 @@ export async function GET(request: Request) {
   if (!session?.user?.id) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
   try {
-    const result = await query(
+    // Get basic user info
+    const userResult = await query(
       `SELECT id, name, email, phone, balance, referral_code, total_earnings, referral_earnings, 
-              bonus_balance, is_verified, created_at, last_login_at, total_bets, won_bets, lost_bets 
+              bonus_balance, is_verified, created_at, last_login_at, total_bets, won_bets, lost_bets,
+              referred_by
        FROM users 
        WHERE id = $1 AND is_active = true`,
       [session.user.id]
     );
 
-    if (result.rows.length === 0) {
+    if (userResult.rows.length === 0) {
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
     }
 
+    // Get affiliate statistics
+    const affiliateStats = await query(
+      `SELECT 
+        COUNT(*) as total_referrals,
+        SUM(CASE WHEN payment_transactions.status = 'completed' THEN 1 ELSE 0 END) as active_referrals,
+        SUM(CASE WHEN payment_transactions.status = 'completed' THEN payment_transactions.amount ELSE 0 END) as total_volume
+       FROM users
+       LEFT JOIN payment_transactions ON users.id = payment_transactions.user_id
+       WHERE users.referred_by = $1`,
+      [session.user.id]
+    );
+
+    // Get pending referral bonuses
+    const pendingBonuses = await query(
+      `SELECT COUNT(*) as count, COALESCE(SUM(bonus_amount), 0) as amount
+       FROM referral_bonuses
+       WHERE referrer_id = $1 AND status = 'pending'`,
+      [session.user.id]
+    );
+
+    // Get affiliate settings
+    const settingsResult = await query(
+      `SELECT 
+        (SELECT value FROM system_settings WHERE key = 'affiliate_min_deposit') as min_deposit,
+        (SELECT value FROM system_settings WHERE key = 'affiliate_cpa_value') as cpa_value,
+        (SELECT value FROM system_settings WHERE key = 'referral_bonus') as referral_bonus`
+    );
+
+    const affiliateSettings = {
+      min_deposit: parseFloat(settingsResult.rows[0]?.min_deposit || '0'),
+      cpa_value: parseFloat(settingsResult.rows[0]?.cpa_value || '0'),
+      referral_bonus: parseFloat(settingsResult.rows[0]?.referral_bonus || '0')
+    };
+
+    // Get referrer info if user was referred
+    let referrerInfo = null;
+    if (userResult.rows[0].referred_by) {
+      const referrerResult = await query(
+        `SELECT name, email, phone FROM users WHERE id = $1`,
+        [userResult.rows[0].referred_by]
+      );
+      if (referrerResult.rows.length > 0) {
+        referrerInfo = {
+          name: referrerResult.rows[0].name,
+          email: referrerResult.rows[0].email,
+          phone: referrerResult.rows[0].phone
+        };
+      }
+    }
+
     const user = {
-      id: result.rows[0].id,
-      name: result.rows[0].name,
-      email: result.rows[0].email,
-      phone: result.rows[0].phone,
-      balance: parseFloat(result.rows[0].balance),
-      avatar: result.rows[0].avatar || undefined,
-      referralCode: result.rows[0].referral_code,
-      totalEarnings: parseFloat(result.rows[0].total_earnings),
-      referralEarnings: parseFloat(result.rows[0].referral_earnings),
-      bonusBalance: parseFloat(result.rows[0].bonus_balance),
-      isVerified: result.rows[0].is_verified,
-      createdAt: result.rows[0].created_at.toISOString(),
-      lastLoginAt: result.rows[0].last_login_at?.toISOString() || null,
-      totalBets: parseInt(result.rows[0].total_bets),
-      wonBets: parseInt(result.rows[0].won_bets),
-      lostBets: parseInt(result.rows[0].lost_bets)
+      id: userResult.rows[0].id,
+      name: userResult.rows[0].name,
+      email: userResult.rows[0].email,
+      phone: userResult.rows[0].phone,
+      balance: parseFloat(userResult.rows[0].balance),
+      avatar: userResult.rows[0].avatar || undefined,
+      referralCode: userResult.rows[0].referral_code,
+      totalEarnings: parseFloat(userResult.rows[0].total_earnings),
+      referralEarnings: parseFloat(userResult.rows[0].referral_earnings),
+      bonusBalance: parseFloat(userResult.rows[0].bonus_balance),
+      isVerified: userResult.rows[0].is_verified,
+      createdAt: userResult.rows[0].created_at.toISOString(),
+      lastLoginAt: userResult.rows[0].last_login_at?.toISOString() || null,
+      totalBets: parseInt(userResult.rows[0].total_bets),
+      wonBets: parseInt(userResult.rows[0].won_bets),
+      lostBets: parseInt(userResult.rows[0].lost_bets),
+      referredBy: referrerInfo,
+      affiliateStats: {
+        totalReferrals: parseInt(affiliateStats.rows[0]?.total_referrals || '0'),
+        activeReferrals: parseInt(affiliateStats.rows[0]?.active_referrals || '0'),
+        totalVolume: parseFloat(affiliateStats.rows[0]?.total_volume || '0'),
+        pendingBonuses: {
+          count: parseInt(pendingBonuses.rows[0]?.count || '0'),
+          amount: parseFloat(pendingBonuses.rows[0]?.amount || '0')
+        }
+      },
+      affiliateSettings
     };
 
     return NextResponse.json(user);
