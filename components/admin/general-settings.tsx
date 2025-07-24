@@ -72,6 +72,26 @@ export function GeneralSettings() {
     loadSettings()
   }, [toast])
 
+  const handleRtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const value = e.target.value;
+  
+  // Permite campo vazio ou números válidos
+  if (value === '') {
+    setRtpValue(0);
+    return;
+  }
+  
+  const numValue = parseInt(value);
+  
+  // Verifica se é um número válido entre 0 e 100
+  if (!isNaN(numValue)) {
+    if (numValue >= 0 && numValue <= 100) {
+      setRtpValue(numValue);
+    }
+  }
+};
+
+
   const handleSaveConfig = async () => {
     setIsSaving(true)
     try {
@@ -224,12 +244,14 @@ export function GeneralSettings() {
               <label className="block text-gray-300 text-sm font-medium mb-2">
                 Valor do RTP (0-100)
               </label>
-              <Input
-                type="text"
-
-                value={rtpValue}
-                className="bg-gray-700 border-gray-600 text-white"
-              />
+<Input
+    type="number"
+    value={rtpValue || ''}
+    onChange={handleRtpChange}
+    min="0"
+    max="100"
+    className="bg-gray-700 border-gray-600 text-white"
+  />
               <p className="text-xs text-gray-400 mt-1">
                 O RTP (Return to Player) determina a porcentagem de retorno aos jogadores.
               </p>
