@@ -1,3 +1,4 @@
+// components/pages/latest-winners.tsx
 "use client"
 
 import { useEffect, useState } from "react"
@@ -8,7 +9,7 @@ import "swiper/css"
 import "swiper/css/autoplay"
 
 interface Winner {
-  id: number
+  id: string
   username: string
   prize: string
   prizeType: "PIX" | "PRODUTO"
@@ -16,16 +17,39 @@ interface Winner {
   avatar: string
 }
 
-const rawWinners = [
-  { username: "***maria", prize: "R$ 50", prizeType: "PIX", timeAgo: "há 5 min" },
-  { username: "***joao", prize: "R$ 100", prizeType: "PIX", timeAgo: "há 8 min" },
-  { username: "***ana", prize: "Apple Watch", prizeType: "PRODUTO", timeAgo: "há 12 min" },
-  { username: "***luis", prize: "R$ 250", prizeType: "PIX", timeAgo: "há 20 min" },
-  { username: "***bia", prize: "iPhone 14", prizeType: "PRODUTO", timeAgo: "há 25 min" },
-  { username: "***pedro", prize: "R$ 500", prizeType: "PIX", timeAgo: "há 32 min" },
-  { username: "***lara", prize: "PlayStation 5", prizeType: "PRODUTO", timeAgo: "há 40 min" },
-  { username: "***rafa", prize: "R$ 1000", prizeType: "PIX", timeAgo: "há 1h" },
+const rawWinners: Omit<Winner, 'id' | 'avatar'>[] = [
+  { username: "***Maria", prize: "R$ 50", prizeType: "PIX", timeAgo: "há 5 min" },
+  { username: "***Joao", prize: "R$ 100", prizeType: "PIX", timeAgo: "há 8 min" },
+  { username: "***Ana", prize: "Apple Watch", prizeType: "PRODUTO", timeAgo: "há 12 min" },
+  { username: "***Luis", prize: "R$ 250", prizeType: "PIX", timeAgo: "há 20 min" },
+  { username: "***Bia", prize: "iPhone 14", prizeType: "PRODUTO", timeAgo: "há 25 min" },
+  { username: "***Pedro", prize: "R$ 500", prizeType: "PIX", timeAgo: "há 32 min" },
+  { username: "***Lara", prize: "PlayStation 5", prizeType: "PRODUTO", timeAgo: "há 40 min" },
+  { username: "***Rafa", prize: "R$ 1000", prizeType: "PIX", timeAgo: "há 1h" },
+  { username: "***Carlos", prize: "R$ 200", prizeType: "PIX", timeAgo: "há 45 min" },
+  { username: "***Sara", prize: "Xbox Series X", prizeType: "PRODUTO", timeAgo: "há 50 min" },
+  { username: "***Miguel", prize: "R$ 300", prizeType: "PIX", timeAgo: "há 55 min" },
+  { username: "***Julia", prize: "AirPods Pro", prizeType: "PRODUTO", timeAgo: "há 1h 5 min" },
+  { username: "***Felipe", prize: "R$ 150", prizeType: "PIX", timeAgo: "há 1h 10 min" },
+  { username: "***Isabela", prize: "Nintendo Switch", prizeType: "PRODUTO", timeAgo: "há 1h 15 min" },
+  { username: "***Gabriel", prize: "R$ 400", prizeType: "PIX", timeAgo: "há 1h 20 min" },
+  { username: "***Marcos", prize: "R$ 75", prizeType: "PIX", timeAgo: "há 1h 25 min" },
+  { username: "***Aline", prize: "Samsung Galaxy S22", prizeType: "PRODUTO", timeAgo: "há 1h 30 min" },
+  { username: "***Bruno", prize: "R$ 600", prizeType: "PIX", timeAgo: "há 1h 35 min" },
+  { username: "***Deborah", prize: "Smart TV 50''", prizeType: "PRODUTO", timeAgo: "há 1h 40 min" },
+  { username: "***Lucas", prize: "R$ 90", prizeType: "PIX", timeAgo: "há 1h 45 min" },
+  { username: "***Renata", prize: "Kindle Paperwhite", prizeType: "PRODUTO", timeAgo: "há 1h 50 min" },
+  { username: "***Thiago", prize: "R$ 850", prizeType: "PIX", timeAgo: "há 1h 55 min" },
+  { username: "***Carla", prize: "iPad 9ª Geração", prizeType: "PRODUTO", timeAgo: "há 2h" },
+  { username: "***Eduardo", prize: "R$ 120", prizeType: "PIX", timeAgo: "há 2h 5 min" },
+  { username: "***Patricia", prize: "Câmera GoPro", prizeType: "PRODUTO", timeAgo: "há 2h 10 min" },
+  { username: "***Rodrigo", prize: "R$ 700", prizeType: "PIX", timeAgo: "há 2h 15 min" },
+  { username: "***Natalia", prize: "Echo Dot", prizeType: "PRODUTO", timeAgo: "há 2h 20 min" },
+  { username: "***Vinicius", prize: "R$ 50", prizeType: "PIX", timeAgo: "há 2h 25 min" },
+  { username: "***Tamires", prize: "Fone JBL", prizeType: "PRODUTO", timeAgo: "há 2h 30 min" },
+  { username: "***Henrique", prize: "R$ 180", prizeType: "PIX", timeAgo: "há 2h 35 min" },
 ]
+
 
 export function LatestWinners() {
   const [winners, setWinners] = useState<Winner[]>([])
@@ -33,14 +57,18 @@ export function LatestWinners() {
 
   useEffect(() => {
     const timestamp = Date.now()
-    const withAvatars = rawWinners.map((w, i) => ({
+    const withAvatars: Winner[] = rawWinners.map((w, i) => ({
       ...w,
-      id: i + 1,
+      id: `${i + 1}-${timestamp}`,
       avatar: `https://avatar.iran.liara.run/public?id=${i}-${timestamp}`,
     }))
 
-    // Duplicar para looping contínuo
-    setWinners([...withAvatars, ...withAvatars])
+    const duplicatedWinners: Winner[] = withAvatars.map((winner, index) => ({
+      ...winner,
+      id: `${winner.id}-copy-${index}`,
+    }))
+
+    setWinners([...withAvatars, ...duplicatedWinners])
   }, [])
 
   return (
