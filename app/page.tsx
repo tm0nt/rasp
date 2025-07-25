@@ -461,7 +461,6 @@ function RaspouGanhouApp() {
             {!isAuthenticated && (
               <div className="hidden md:flex items-center gap-2 text-green-400 animate-pulse">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-ping"></div>
-                <span className="text-sm font-medium">99 Raspadinhas</span>
               </div>
             )}
           </div>
