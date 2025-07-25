@@ -22,22 +22,36 @@ export async function POST(request: Request) {
       )
     }
 
-    // Find the transaction in our database
+    // Find the transaction in our database, regardless of status
     const transactionResult = await query(
-      `SELECT id, user_id, amount 
+      `SELECT id, user_id, amount, status 
        FROM payment_transactions 
-       WHERE external_id = $1 AND status = 'pending'`,
+       WHERE external_id = $1`,
       [transactionData.external_id]
     )
 
     if (transactionResult.rows.length === 0) {
+      console.log(`Transação não encontrada: ${transactionData.external_id}`)
       return NextResponse.json(
-        { error: 'Transação não encontrada ou já processada' },
-        { status: 404 }
+        { success: true, message: 'Transação não encontrada, ignorando' }
       )
     }
 
     const transaction = transactionResult.rows[0]
+
+    if (transaction.status === 'completed') {
+      return NextResponse.json(
+        { success: true, message: 'Transação já processada' }
+      )
+    }
+
+    if (transaction.status !== 'pending') {
+      console.log(`Transação em status inválido: ${transaction.status}`)
+      return NextResponse.json(
+        { success: true, message: 'Status da transação inválido, ignorando' }
+      )
+    }
+
     const amount = parseFloat(transaction.amount)
 
     // Start a database transaction

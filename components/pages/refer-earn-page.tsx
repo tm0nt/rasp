@@ -66,7 +66,7 @@ export function ReferEarnPage({ onBack, user, onLogout, onNavigate }: ReferEarnP
   useEffect(() => {
     if (user.referralCode) {
       const currentOrigin = typeof window !== "undefined" ? window.location.origin : ""
-      const link = `${currentOrigin}/ref/${user.referralCode}`
+      const link = `${currentOrigin}/?code=${user.referralCode}`
       setReferralLink(link)
     }
   }, [user.referralCode])

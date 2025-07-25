@@ -6,7 +6,7 @@ import { query } from '@/lib/db'
 
 export async function GET(
   request: Request, 
-  { params }: { params: { transactionId: string } }
+  { params }: { params: Promise<{ transactionId: string }> }
 ) {
   try {
     // Await the session promise
@@ -15,8 +15,8 @@ export async function GET(
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
     }
 
-    // Explicitly get the transactionId from params
-    const { transactionId } = params
+    // Await params to get transactionId
+    const { transactionId } = await params
 
     try {
       const result = await query(
