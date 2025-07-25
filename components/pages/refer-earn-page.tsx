@@ -311,6 +311,13 @@ export function ReferEarnPage({ onBack, user, onLogout, onNavigate }: ReferEarnP
                 <Share className="w-4 h-4 mr-2" />
                 Compartilhar
               </Button>
+              <Button
+                onClick={() => onNavigate("withdraw")}
+                className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white py-3 h-12 rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/25"
+              >
+                <Wallet className="w-4 h-4 mr-2" />
+                Pedir Saque
+              </Button>
             </div>
 
             {user.referralCode && (

@@ -1,11 +1,13 @@
 "use client"
+
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PageLayout } from "@/components/layout/page-layout"
-import { DollarSign, AlertTriangle, CheckCircle } from "lucide-react"
+import { DollarSign, AlertTriangle, CheckCircle, Users } from "lucide-react"
 import { useToast } from "@/contexts/toast-context"
+import clsx from "clsx"
 
 interface WithdrawPageProps {
   onBack: () => void
@@ -16,9 +18,10 @@ interface WithdrawPageProps {
     phone: string
     avatar?: string
     balance: number
+    referralEarnings: number
   }
   onLogout: () => void
-  onNavigate: (page: string) => void
+  onNavigate: (page: string, params?: any) => void
 }
 
 export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPageProps) {
@@ -26,13 +29,16 @@ export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPag
   const [pixKey, setPixKey] = useState("")
   const [pixKeyType, setPixKeyType] = useState<"cpf" | "email" | "phone" | "random">("cpf")
   const [isProcessing, setIsProcessing] = useState(false)
+  const [selectedWallet, setSelectedWallet] = useState<"balance" | "referral">("balance")
   const { showToast } = useToast()
 
   const minWithdraw = 10
-  const maxWithdraw = Math.min(user.balance, 5000)
+  const availableAmount = selectedWallet === "balance" ? user.balance : user.referralEarnings
+  const maxWithdraw = Math.min(availableAmount, 5000)
 
   const handleWithdraw = async () => {
     const amount = Number.parseFloat(withdrawAmount)
+    const withdrawType = selectedWallet
 
     if (!amount || amount < minWithdraw || amount > maxWithdraw || !pixKey) {
       showToast({
@@ -49,36 +55,25 @@ export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPag
     try {
       const response = await fetch('/api/user/withdraw', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount,
-          pixKey,
-          pixKeyType,
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, pixKey, pixKeyType, withdrawType })
       })
 
       const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Erro ao processar saque')
 
-      if (!response.ok) {
-        throw new Error(result.error || 'Erro ao processar saque')
-      }
-
-      // Atualização otimista do saldo
       const updatedUser = {
         ...user,
-        balance: user.balance - amount
+        [selectedWallet === "balance" ? "balance" : "referralEarnings"]: availableAmount - amount
       }
 
       showToast({
         type: "success",
         title: "✅ Saque solicitado!",
-        message: `Sua solicitação de saque de R$ ${amount.toFixed(2)} foi enviada. O valor será processado em até 24 horas.`,
+        message: `Sua solicitação de R$ ${amount.toFixed(2)} foi enviada.`,
         duration: 8000,
       })
 
-      // Enviar email de confirmação (opcional)
       try {
         await fetch('/api/email/withdrawal-confirmation', {
           method: 'POST',
@@ -95,20 +90,15 @@ export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPag
         console.error("Erro ao enviar email:", emailError)
       }
 
-      // Reset form
       setWithdrawAmount("")
       setPixKey("")
-
-      // Atualizar dados do usuário (se necessário)
       onNavigate("wallet", { updatedUser })
 
     } catch (error: any) {
-      console.error("Withdrawal error:", error)
-
       showToast({
         type: "error",
         title: "❌ Erro no saque",
-        message: error.message || "Não foi possível processar sua solicitação de saque. Tente novamente.",
+        message: error.message || "Tente novamente.",
         duration: 6000,
       })
     } finally {
@@ -117,57 +107,71 @@ export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPag
   }
 
   return (
-    <PageLayout
-      title="Sacar fundos"
-      showBackButton
-      onBack={onBack}
-      user={user}
-      onLogout={onLogout}
-      onNavigate={onNavigate}
-    >
-      <div className="max-w-2xl mx-auto space-y-6">
-        {/* Balance Card */}
-        <Card className="bg-gray-900/50 border-gray-800">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-green-400" />
-              Saldo Disponível
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-green-400">R$ {user.balance.toFixed(2)}</p>
-            <p className="text-gray-400 text-sm mt-1">Valor máximo para saque: R$ {maxWithdraw.toFixed(2)}</p>
-          </CardContent>
-        </Card>
+    <PageLayout title="Sacar fundos" showBackButton onBack={onBack} user={user} onLogout={onLogout} onNavigate={onNavigate}>
+      <div className="max-w-2xl mx-auto space-y-6 px-4">
 
-        {/* Withdrawal Form */}
-        <Card className="bg-gray-900/50 border-gray-800">
+        {/* Carteiras com estilo gradiente */}
+        <div className="grid grid-cols-2 gap-4">
+          {[
+            {
+              label: "Saldo Principal",
+              value: "balance",
+              amount: user.balance,
+              icon: <DollarSign className="w-5 h-5 text-white" />,
+              gradient: "from-green-400 via-green-500 to-green-600"
+            },
+            {
+              label: "Ganhos de Indicação",
+              value: "referral",
+              amount: user.referralEarnings,
+              icon: <Users className="w-5 h-5 text-white" />,
+              gradient: "from-blue-400 via-blue-500 to-blue-600"
+            },
+          ].map((wallet) => (
+            <div
+              key={wallet.value}
+              onClick={() => setSelectedWallet(wallet.value as "balance" | "referral")}
+              className={clsx(
+                "rounded-2xl cursor-pointer p-4 shadow-lg transition border-2",
+                selectedWallet === wallet.value
+                  ? `border-white bg-gradient-to-r ${wallet.gradient}`
+                  : "border-transparent bg-gray-800 hover:border-gray-600"
+              )}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-white font-semibold">
+                  {wallet.icon}
+                  {wallet.label}
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-white">R$ {wallet.amount.toFixed(2)}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Formulário de saque */}
+        <Card className="bg-gray-900/60 border border-gray-800 shadow-md rounded-2xl">
           <CardHeader>
-            <CardTitle className="text-white">Dados do Saque</CardTitle>
+            <CardTitle className="text-white">Solicitação de Saque</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Amount Input */}
             <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">Valor do Saque (R$)</label>
+              <label className="block text-gray-300 mb-2">Valor (R$)</label>
               <Input
                 type="number"
                 placeholder="0,00"
                 value={withdrawAmount}
                 onChange={(e) => setWithdrawAmount(e.target.value)}
                 className="bg-gray-800 border-gray-700 text-white"
-                min={minWithdraw}
-                max={maxWithdraw}
-                step="0.01"
               />
-              <div className="flex justify-between text-sm text-gray-400 mt-1">
+              <div className="text-sm text-gray-400 mt-1 flex justify-between">
                 <span>Mínimo: R$ {minWithdraw.toFixed(2)}</span>
                 <span>Máximo: R$ {maxWithdraw.toFixed(2)}</span>
               </div>
             </div>
 
-            {/* PIX Key Type */}
             <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">Tipo de Chave PIX</label>
+              <label className="block text-gray-300 mb-2">Tipo de Chave PIX</label>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { value: "cpf", label: "CPF" },
@@ -180,11 +184,9 @@ export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPag
                     variant={pixKeyType === type.value ? "default" : "outline"}
                     size="sm"
                     onClick={() => setPixKeyType(type.value as any)}
-                    className={
-                      pixKeyType === type.value
-                        ? "bg-green-500 hover:bg-green-600"
-                        : "border-gray-600 text-gray-300 hover:bg-gray-800"
-                    }
+                    className={pixKeyType === type.value
+                      ? "bg-green-500 hover:bg-green-600 text-white"
+                      : "border-gray-600 text-gray-300 hover:bg-gray-800"}
                   >
                     {type.label}
                   </Button>
@@ -192,9 +194,8 @@ export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPag
               </div>
             </div>
 
-            {/* PIX Key Input */}
             <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">Chave PIX</label>
+              <label className="block text-gray-300 mb-2">Chave PIX</label>
               <Input
                 type="text"
                 placeholder={
@@ -212,7 +213,6 @@ export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPag
               />
             </div>
 
-            {/* Withdraw Button */}
             <Button
               onClick={handleWithdraw}
               disabled={
@@ -222,25 +222,25 @@ export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPag
                 !pixKey ||
                 isProcessing
               }
-              className="w-full bg-green-500 hover:bg-green-600 text-white py-3"
+              className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 font-semibold rounded-xl"
             >
               {isProcessing ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   Processando...
-                </>
+                </div>
               ) : (
-                <>
-                  <CheckCircle className="w-4 h-4 mr-2" />
+                <div className="flex items-center justify-center gap-2">
+                  <CheckCircle className="w-4 h-4" />
                   Solicitar Saque
-                </>
+                </div>
               )}
             </Button>
           </CardContent>
         </Card>
 
-        {/* Important Information */}
-        <Card className="bg-yellow-900/20 border-yellow-500/30">
+        {/* Informações Importantes */}
+        <Card className="bg-yellow-900/10 border border-yellow-500/20 rounded-2xl shadow">
           <CardHeader>
             <CardTitle className="text-yellow-400 flex items-center gap-2">
               <AlertTriangle className="w-5 h-5" />

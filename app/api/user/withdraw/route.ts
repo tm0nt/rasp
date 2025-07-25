@@ -9,6 +9,7 @@ const withdrawalSchema = z.object({
   amount: z.number().min(10, 'O valor mínimo para saque é R$ 10,00').max(5000, 'O valor máximo para saque é R$ 5.000,00'),
   pixKey: z.string().min(5, 'Chave PIX inválida'),
   pixKeyType: z.enum(['cpf', 'email', 'phone', 'random']),
+  withdrawType: z.enum(['balance', 'referral']),
 })
 
 export async function POST(request: Request) {
@@ -18,18 +19,6 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Verificar saldo do usuário
-    const balanceResult = await query(
-      'SELECT balance FROM users WHERE id = $1',
-      [session.user.id]
-    )
-    
-    if (balanceResult.rows.length === 0) {
-      return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 })
-    }
-
-    const userBalance = parseFloat(balanceResult.rows[0].balance)
-    
     // Validar dados da requisição
     const body = await request.json()
     const validation = withdrawalSchema.safeParse(body)
@@ -41,8 +30,21 @@ export async function POST(request: Request) {
       )
     }
 
-    const { amount, pixKey, pixKeyType } = validation.data
+    const { amount, pixKey, pixKeyType, withdrawType } = validation.data
+    const field = withdrawType === 'balance' ? 'balance' : 'referral_earnings'
 
+    // Verificar saldo do usuário
+    const balanceResult = await query(
+      `SELECT ${field} FROM users WHERE id = $1`,
+      [session.user.id]
+    )
+    
+    if (balanceResult.rows.length === 0) {
+      return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 })
+    }
+
+    const userBalance = parseFloat(balanceResult.rows[0][field])
+    
     // Verificar se o saldo é suficiente
     if (amount > userBalance) {
       return NextResponse.json(
@@ -69,7 +71,7 @@ export async function POST(request: Request) {
         amount,
         'pending',
         'pix',
-        `Solicitação de saque via PIX (${pixKeyType})`,
+        `Solicitação de saque via PIX (${pixKeyType}) de ${withdrawType}`,
         JSON.stringify({
           pixKey,
           pixKeyType,
@@ -80,7 +82,7 @@ export async function POST(request: Request) {
 
     // Atualizar saldo do usuário (deduzir o valor do saque)
     await query(
-      'UPDATE users SET balance = balance - $1 WHERE id = $2',
+      `UPDATE users SET ${field} = ${field} - $1 WHERE id = $2`,
       [amount, session.user.id]
     )
 
