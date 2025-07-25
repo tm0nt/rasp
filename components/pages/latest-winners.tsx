@@ -82,7 +82,7 @@ useEffect(() => {
           </h2>
           <div className="text-right">
             <p className="text-sm text-gray-400">Prêmios Distribuídos</p>
-            <p className="text-2xl font-bold text-green-400">{totalPrizes}</p>
+<p className="text-xl sm:text-2xl font-bold text-green-400">{totalPrizes}</p>
           </div>
         </div>
 
