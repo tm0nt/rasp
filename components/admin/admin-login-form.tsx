@@ -95,16 +95,6 @@ export function AdminLoginForm({ onLogin }: AdminLoginFormProps) {
               )}
             </Button>
           </form>
-
-          {/* Informações de Desenvolvimento */}
-          <div className="mt-8 p-4 bg-gray-800/50 rounded-lg">
-            <h3 className="text-white font-semibold text-sm mb-2">Credenciais de Desenvolvimento:</h3>
-            <p className="text-gray-400 text-xs">
-              Email: admin@raspouganhou.com
-              <br />
-              Senha: admin123
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>

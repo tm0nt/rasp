@@ -46,72 +46,81 @@ export function LoginForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6">
-      <p className="text-gray-300 text-sm">Acesse sua conta com suas credenciais</p>
+    <>
+      <form onSubmit={onSubmit} className="space-y-6 pb-24 md:pb-0">
+        <p className="text-gray-300 text-sm">Acesse sua conta com suas credenciais</p>
 
-      <LoginMethodTabs activeMethod={loginMethod} onMethodChange={handleMethodChange} />
+        <LoginMethodTabs activeMethod={loginMethod} onMethodChange={handleMethodChange} />
 
-      <div className="space-y-4">
-        <IconInput
-          icon={loginMethod === "email" ? Mail : Phone}
-          type={loginMethod === "email" ? "email" : "tel"}
-          placeholder={loginMethod === "email" ? "E-mail" : "Telefone"}
-          value={loginMethod === "email" ? formData.email || "" : formData.phone || ""}
-          onChange={(value) => onFormDataChange(loginMethod === "email" ? "email" : "phone", value)}
-          required
-        />
+        <div className="space-y-4">
+          <IconInput
+            icon={loginMethod === "email" ? Mail : Phone}
+            type={loginMethod === "email" ? "email" : "tel"}
+            placeholder={loginMethod === "email" ? "E-mail" : "Telefone"}
+            value={loginMethod === "email" ? formData.email || "" : formData.phone || ""}
+            onChange={(value) => onFormDataChange(loginMethod === "email" ? "email" : "phone", value)}
+            required
+          />
 
-        <PasswordInput
-          placeholder="Digite sua senha"
-          value={formData.password}
-          onChange={(value) => onFormDataChange("password", value)}
-          required
-        />
-      </div>
+          <PasswordInput
+            placeholder="Digite sua senha"
+            value={formData.password}
+            onChange={(value) => onFormDataChange("password", value)}
+            required
+          />
+        </div>
 
-      {/* Remember me and forgot password */}
-      <div className="flex items-center justify-between">
-        <RememberMeCheckbox
-          checked={formData.rememberMe}
-          onCheckedChange={(checked) => onFormDataChange("rememberMe", checked)}
-          id="remember-login"
-        />
-        <button
-          type="button"
-          onClick={onForgotPassword}
-          className="text-sm text-green-400 hover:text-green-300 transition-colors duration-200 hover:underline"
+        {/* Remember me and forgot password */}
+        <div className="flex items-center justify-between">
+          <RememberMeCheckbox
+            checked={formData.rememberMe}
+            onCheckedChange={(checked) => onFormDataChange("rememberMe", checked)}
+            id="remember-login"
+          />
+          <button
+            type="button"
+            onClick={onForgotPassword}
+            className="text-sm text-green-400 hover:text-green-300 transition-colors duration-200 hover:underline"
+          >
+            Esqueceu sua senha?
+          </button>
+        </div>
+
+        {/* Submit button - apenas desktop */}
+        <Button
+          type="submit"
+          disabled={isLoading}
+          className="w-full bg-green-500 hover:bg-green-600 text-white py-3 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/25 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed hidden md:block"
         >
-          Esqueceu sua senha?
-        </button>
-      </div>
+          {isLoading ? (
+            <div className="flex items-center justify-center">
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+              Entrando...
+            </div>
+          ) : (
+            "Entrar"
+          )}
+        </Button>
+      </form>
 
-      {/* Submit button */}
-      <Button
-        type="submit"
-        disabled={isLoading}
-        className="w-full bg-green-500 hover:bg-green-600 text-white py-3 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/25 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {isLoading ? (
-          <div className="flex items-center justify-center">
-            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-            Entrando...
-          </div>
-        ) : (
-          "Entrar"
-        )}
-      </Button>
-
-      {/* Switch to register */}
-      <p className="text-center text-sm text-gray-400">
-        Ainda não tem uma conta?{" "}
-        <button
-          type="button"
-          onClick={onSwitchToRegister}
-          className="text-green-400 hover:text-green-300 transition-colors duration-200 hover:underline"
+      {/* Botão fixo no mobile */}
+      <div className="fixed bottom-0 left-0 w-full p-4 bg-background border-t border-gray-700 z-50 md:hidden">
+        <Button
+          type="submit"
+          disabled={isLoading}
+          form="login-form"
+          className="w-full bg-green-500 hover:bg-green-600 text-white py-3 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/25 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Criar uma conta grátis
-        </button>
-      </p>
-    </form>
+          {isLoading ? (
+            <div className="flex items-center justify-center">
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+              Entrando...
+            </div>
+          ) : (
+            "Entrar"
+          )}
+        </Button>
+      </div>
+    </>
   )
 }

@@ -53,7 +53,7 @@ const rawWinners: Omit<Winner, 'id' | 'avatar'>[] = [
 
 export function LatestWinners() {
   const [winners, setWinners] = useState<Winner[]>([])
-  const [totalPrizes] = useState("R$ 1.589.896,56")
+  const [totalPrizes] = useState("R$ 89.896,56")
 
 useEffect(() => {
   const timestamp = Date.now()
@@ -73,7 +73,7 @@ useEffect(() => {
 
 
   return (
-    <section className="py-6">
+    <section className="">
       <div className="rounded-xl p-6 backdrop-blur-sm shadow-xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">

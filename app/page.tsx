@@ -452,9 +452,9 @@ function RaspouGanhouApp() {
               <Image
                 src="/images/logo.png"
                 alt="Raspou Ganhou"
-                width={120}
-                height={40}
-                className="h-8 w-auto transition-transform duration-300 group-hover:scale-105"
+                width={150}
+                height={20}
+                className="transition-transform duration-300 group-hover:scale-105"
                 priority
               />
             </div>

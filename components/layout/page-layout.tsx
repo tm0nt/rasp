@@ -99,7 +99,7 @@ export function PageLayout({
           user ? "top-[73px]" : "top-0" // Adjust position based on main header
         }`}
       >
-        <div className="max-w-6xl mx-auto px-4 py-4">
+        <div className="max-w-6xl mx-auto px-4 py-2">
           <div className="flex items-center gap-4">
             {/* Back button */}
             {showBackButton && (
@@ -125,7 +125,7 @@ export function PageLayout({
       {/* MAIN CONTENT */}
       <main
         className={`max-w-6xl mx-auto px-4 pb-6 ${
-          user ? "pt-[140px]" : "pt-20" // Spacing to account for fixed headers
+          user ? "pt-[100px]" : "pt-10" // Spacing to account for fixed headers
         }`}
       >
         {children}

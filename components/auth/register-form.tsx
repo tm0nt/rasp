@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { Button } from "@/components/ui/button"
 import { IconInput } from "@/components/ui/icon-input"
 import { PasswordInput } from "@/components/ui/password-input"
@@ -22,88 +21,104 @@ interface RegisterFormProps {
   isLoading: boolean
 }
 
-/**
- * Registration form component
- * Features:
- * - Complete user information collection
- * - Form validation
- * - Consistent styling with login form
- */
-export function RegisterForm({ formData, onFormDataChange, onSubmit, onSwitchToLogin, isLoading }: RegisterFormProps) {
+export function RegisterForm({
+  formData,
+  onFormDataChange,
+  onSubmit,
+  onSwitchToLogin,
+  isLoading,
+}: RegisterFormProps) {
   return (
-    <form onSubmit={onSubmit} className="space-y-6">
-      <p className="text-gray-300 text-sm">Crie sua conta gratuita. Vamos começar?</p>
+    <>
+      <form onSubmit={onSubmit} className="space-y-6 pb-24 md:pb-0">
+        <p className="text-gray-300 text-sm">Crie sua conta gratuita. Vamos começar?</p>
 
-      <div className="space-y-4">
-        {/* Name input */}
-        <IconInput
-          icon={User}
-          type="text"
-          placeholder="Nome completo"
-          value={formData.name}
-          onChange={(value) => onFormDataChange("name", value)}
-          required
-        />
-
-        {/* Phone input */}
-        <IconInput
-          icon={Phone}
-          type="tel"
-          placeholder="Telefone"
-          value={formData.phone}
-          onChange={(value) => onFormDataChange("phone", value)}
-          required
-        />
-
-        {/* Email input */}
-        <IconInput
-          icon={Mail}
-          type="email"
-          placeholder="Email"
-          value={formData.email}
-          onChange={(value) => onFormDataChange("email", value)}
-          required
-        />
-
-        {/* Password input */}
-        <PasswordInput
-          placeholder="Senha"
-          value={formData.password}
-          onChange={(value) => onFormDataChange("password", value)}
-          required
-        />
-      </div>
-
-      {/* Submit button */}
-      <Button
-        type="submit"
-        disabled={isLoading}
-        className="w-full bg-green-500 hover:bg-green-600 text-white py-3 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/25 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {isLoading ? (
-          <div className="flex items-center justify-center">
-            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-            Processando...
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-1">
+          {/* Nome ocupa linha inteira */}
+          <div className="col-span-full">
+            <IconInput
+              icon={User}
+              type="text"
+              placeholder="Nome completo"
+              value={formData.name}
+              onChange={(value) => onFormDataChange("name", value)}
+              required
+            />
           </div>
-        ) : (
-          <>
-            Continuar
-            <ArrowRight className="w-4 h-4 ml-2 transition-transform duration-300 group-hover:translate-x-1" />
-          </>
-        )}
-      </Button>
 
-      {/* Switch to login */}
-      <p className="text-center text-sm text-gray-400">
-        Já tem uma conta?{" "}
-        <button
-          type="button"
-          onClick={onSwitchToLogin}
-          className="text-green-400 hover:text-green-300 transition-colors duration-200 hover:underline"
+          {/* Email e Telefone em colunas no mobile */}
+          <div className="grid grid-cols-2 gap-4">
+            <IconInput
+              icon={Mail}
+              type="email"
+              placeholder="Email"
+              value={formData.email}
+              onChange={(value) => onFormDataChange("email", value)}
+              required
+            />
+            <IconInput
+              icon={Phone}
+              type="tel"
+              placeholder="Telefone"
+              value={formData.phone}
+              onChange={(value) => onFormDataChange("phone", value)}
+              required
+            />
+          </div>
+
+          {/* Senha */}
+          <div className="col-span-full">
+            <PasswordInput
+              placeholder="Senha"
+              value={formData.password}
+              onChange={(value) => onFormDataChange("password", value)}
+              required
+            />
+          </div>
+        </div>
+
+        {/* Botão Continuar (somente desktop) */}
+        <Button
+          type="submit"
+          disabled={isLoading}
+          className="w-full bg-green-500 hover:bg-green-600 text-white py-3 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/25 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed hidden md:block"
         >
-          Conecte-se
-        </button>
-      </p>
-    </form>
+          {isLoading ? (
+            <div className="flex items-center justify-center">
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+              Processando...
+            </div>
+          ) : (
+            <>
+              Continuar
+              <ArrowRight className="w-4 h-4 ml-2 transition-transform duration-300 group-hover:translate-x-1" />
+            </>
+          )}
+        </Button>
+
+      </form>
+
+      {/* Botão Continuar fixo no mobile */}
+      <div className="fixed bottom-0 left-0 w-full p-4 bg-background border-t border-gray-700 z-50 md:hidden">
+        <Button
+          type="submit"
+          disabled={isLoading}
+          form="register-form"
+          className="w-full bg-green-500 hover:bg-green-600 text-white py-3 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/25 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? (
+            <div className="flex items-center justify-center">
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+              Processando...
+            </div>
+          ) : (
+            <>
+              Continuar
+              <ArrowRight className="w-4 h-4 ml-2 transition-transform duration-300 group-hover:translate-x-1" />
+            </>
+          )}
+        </Button>
+      </div>
+    </>
   )
 }

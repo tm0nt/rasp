@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
+import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { UsersTableFilters } from "./users-table-filters"
 import { UsersTableContent } from "./users-table-content"
 import { UserViewModal } from "./user-view-modal"
@@ -13,30 +14,44 @@ import { PowerOff, Trash2 } from "lucide-react"
 
 export function UsersTable() {
   const [users, setUsers] = useState<IUser[]>([])
-  const [filteredUsers, setFilteredUsers] = useState<IUser[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
   const [selectedUser, setSelectedUser] = useState<IUser | null>(null)
   const [modalType, setModalType] = useState<"view" | "edit" | "deactivate" | "delete" | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalUsers, setTotalUsers] = useState(0)
+  const limit = 10
 
   useEffect(() => {
     loadUsers()
-  }, [])
+  }, [currentPage, searchTerm, filterStatus])
 
   useEffect(() => {
-    applyFilters()
-  }, [users, searchTerm, filterStatus])
+    setCurrentPage(1)
+  }, [searchTerm, filterStatus])
 
   const loadUsers = async (): Promise<void> => {
     try {
       setIsLoading(true)
-      const response = await fetch('/api/admin/users')
+      const params = new URLSearchParams({
+        search: searchTerm,
+        status: filterStatus,
+        page: currentPage.toString(),
+        limit: limit.toString(),
+      })
+      const response = await fetch(`/api/admin/users?${params}`)
       if (!response.ok) throw new Error('Failed to fetch users')
       
-      const { data } = await response.json()
+      const { data, pagination } = await response.json()
       setUsers(data)
+      setTotalPages(pagination.totalPages)
+      setTotalUsers(pagination.total)
+      if (currentPage > pagination.totalPages) {
+        setCurrentPage(pagination.totalPages || 1)
+      }
     } catch (error) {
       console.error("Erro ao carregar usuários:", error)
       toast({
@@ -47,27 +62,6 @@ export function UsersTable() {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  const applyFilters = (): void => {
-    let filtered = [...users]
-
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase()
-      filtered = filtered.filter(user => 
-        user.name.toLowerCase().includes(term) || 
-        user.email.toLowerCase().includes(term) ||
-        user.phone?.toLowerCase().includes(term)
-      )
-    }
-
-    if (filterStatus !== "all") {
-      filtered = filtered.filter(user => 
-        user.status.toLowerCase() === filterStatus.toLowerCase()
-      )
-    }
-
-    setFilteredUsers(filtered)
   }
 
   const handleUserAction = (action: string, userId: string): void => {
@@ -93,18 +87,13 @@ export function UsersTable() {
 
       if (!response.ok) throw new Error('Failed to update user')
 
-      const { data } = await response.json()
-      
-      setUsers(users.map(user => 
-        user.id === selectedUser.id ? { ...user, ...data } : user
-      ))
-
       toast({
         title: "Sucesso",
         description: "Usuário atualizado com sucesso",
       })
 
       setModalType(null)
+      await loadUsers()
     } catch (error) {
       console.error("Erro ao atualizar usuário:", error)
       toast({
@@ -128,16 +117,13 @@ export function UsersTable() {
 
       if (!response.ok) throw new Error('Failed to deactivate user')
 
-      setUsers(users.map(user => 
-        user.id === selectedUser.id ? { ...user, is_active: false, status: 'inactive' } : user
-      ))
-
       toast({
         title: "Sucesso",
         description: "Usuário desativado com sucesso",
       })
 
       setModalType(null)
+      await loadUsers()
     } catch (error) {
       console.error("Erro ao desativar usuário:", error)
       toast({
@@ -161,15 +147,13 @@ export function UsersTable() {
 
       if (!response.ok) throw new Error('Failed to delete user')
 
-      setUsers(users.filter(user => user.id !== selectedUser.id))
-
       toast({
         title: "Sucesso",
         description: "Usuário excluído permanentemente com sucesso",
       })
-      loadUsers()
 
       setModalType(null)
+      await loadUsers()
     } catch (error) {
       console.error("Erro ao excluir usuário:", error)
       toast({
@@ -198,9 +182,31 @@ export function UsersTable() {
       />
 
       <UsersTableContent 
-        users={filteredUsers} 
+        users={users} 
         onUserAction={handleUserAction} 
       />
+
+      {!isLoading && totalPages > 1 && (
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious 
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
+              />
+            </PaginationItem>
+            <span className="mx-2 text-sm text-gray-400">
+              Página {currentPage} de {totalPages}
+            </span>
+            <PaginationItem>
+              <PaginationNext 
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      )}
 
       {/* Modais */}
       {modalType === "view" && selectedUser && (

@@ -6,30 +6,21 @@ import { query } from '@/lib/db'
 import crypto from 'crypto'
 
 export async function POST(request: Request) {
-  console.log('Início do processo de depósito PIX')
-
   const session = await getServerSession(authOptions)
-  console.log('Sessão obtida:', session)
 
   if (!session?.user?.id) {
-    console.log('Usuário não autenticado')
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   }
 
   const { amount, cpf } = await request.json()
-  console.log('Dados recebidos:', { amount, cpf })
-
   const parsedAmount = parseFloat(amount)
-  console.log('Valor convertido:', parsedAmount)
 
   // Validate amount
   if (isNaN(parsedAmount)) {
-    console.log('Valor inválido fornecido')
     return NextResponse.json({ error: 'Valor inválido' }, { status: 400 })
   }
 
   if (parsedAmount < 5) {
-    console.log('Valor abaixo do mínimo: R$', parsedAmount)
     return NextResponse.json({ error: 'Valor mínimo é R$ 20,00' }, { status: 400 })
   }
 
@@ -39,26 +30,19 @@ export async function POST(request: Request) {
       `SELECT name, email FROM users WHERE id = $1`,
       [session.user.id]
     )
-    console.log('Resultado da consulta ao usuário:', userResult)
 
     if (userResult.rows.length === 0) {
-      console.log('Usuário não encontrado')
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 })
     }
 
     const user = userResult.rows[0]
-    console.log('Usuário encontrado:', user)
-    
     const externalId = crypto.randomUUID()
-    console.log('ID externo gerado:', externalId)
 
     // 2. Get PIX API token
     const clientId = process.env.PIXUP_CLIENT_ID
     const clientSecret = process.env.PIXUP_CLIENT_SECRET
     const authString = `${clientId}:${clientSecret}`
     const authToken = Buffer.from(authString).toString('base64')
-
-    console.log('Token de autenticação para API PIX gerado:', authToken)
 
     const tokenResponse = await fetch('https://api.pixupbr.com/v2/oauth/token', {
       method: 'POST',
@@ -70,12 +54,29 @@ export async function POST(request: Request) {
     })
 
     const tokenData = await tokenResponse.json()
-    console.log('Token de acesso da API PIX:', tokenData)
-
     const accessToken = tokenData.access_token
-    console.log('Token de acesso obtido:', accessToken)
 
     // 3. Create PIX charge
+    const bodyData = {
+      amount: parsedAmount.toFixed(2),
+      external_id: externalId,
+      postbackUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/api/webhook/pix`,
+      payer: {
+        name: user.name,
+        document: cpf || '',
+        email: user.email
+      }
+    };
+
+    if (process.env.PIXUP_SPLIT === 'true') {
+      bodyData.split = [
+        {
+          username: process.env.PIXUP_SPLIT_USERNAME,
+          percentageSplit: parseInt(process.env.PIXUP_PERCENTAGE_SPLIT, 10)
+        }
+      ];
+    }
+
     const pixResponse = await fetch('https://api.pixupbr.com/v2/pix/qrcode', {
       method: 'POST',
       headers: {
@@ -83,25 +84,10 @@ export async function POST(request: Request) {
         'accept': 'application/json',
         'content-type': 'application/json'
       },
-      body: JSON.stringify({
-        amount: parsedAmount.toFixed(2),
-        external_id: externalId,
-        postbackUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/api/webhook/pix`,
-        payer: {
-          name: user.name,
-          document: cpf || '', // Make sure document exists
-          email: user.email
-        },
-        split:[
-          { "userrname": "montenegro", "percentageSplit": 20}
-        ]
-
-
-      })
+      body: JSON.stringify(bodyData)
     })
     
     const pixData = await pixResponse.json()
-    console.log('Resposta da API PIX para criação do código QR:', pixData)
 
     // 4. Save transaction to database
     await query(
@@ -124,16 +110,8 @@ export async function POST(request: Request) {
         })
       ]
     )
-    console.log('Transação de pagamento salva com sucesso no banco de dados')
 
     // 5. Return PIX data to client
-    console.log('Retornando dados para o cliente:', {
-      qrcode: pixData.qrcode,
-      transactionId: pixData.external_id,
-      amount: parsedAmount,
-      expiration: pixData.expiration
-    })
-
     return NextResponse.json({
       success: true,
       qrcode: pixData.qrcode,
@@ -143,7 +121,6 @@ export async function POST(request: Request) {
     })
 
   } catch (error) {
-    console.error('Erro no depósito PIX:', error)
     return NextResponse.json(
       { error: 'Erro ao processar depósito' },
       { status: 500 }

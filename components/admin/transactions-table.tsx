@@ -10,8 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
-import { ServiceFactory } from "@/factories/service.factory"
-import type { ITransactionService } from "@/interfaces/admin-services"
+import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
+import type { ITransaction } from "@/types/admin" // Assuming this exists based on previous patterns
 
 interface ITransaction {
   id: string
@@ -29,7 +29,6 @@ interface ITransaction {
 
 export function TransactionsTable() {
   const [transactions, setTransactions] = useState<ITransaction[]>([])
-  const [filteredTransactions, setFilteredTransactions] = useState<ITransaction[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterType, setFilterType] = useState("all")
@@ -37,22 +36,39 @@ export function TransactionsTable() {
   const [selectedTransaction, setSelectedTransaction] = useState<ITransaction | null>(null)
   const [modalType, setModalType] = useState<"view" | "approve" | "reject" | null>(null)
   const [adminNote, setAdminNote] = useState("")
-
-  const transactionService: ITransactionService = ServiceFactory.getTransactionService()
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalTransactions, setTotalTransactions] = useState(0)
+  const limit = 10
 
   useEffect(() => {
     loadTransactions()
-  }, [])
+  }, [currentPage, searchTerm, filterType, filterStatus])
 
   useEffect(() => {
-    applyFilters()
-  }, [transactions, searchTerm, filterType, filterStatus])
+    setCurrentPage(1)
+  }, [searchTerm, filterType, filterStatus])
 
   const loadTransactions = async () => {
     try {
       setIsLoading(true)
-      const data = await transactionService.getTransactions()
+      const params = new URLSearchParams({
+        search: searchTerm,
+        type: filterType,
+        status: filterStatus,
+        page: currentPage.toString(),
+        limit: limit.toString(),
+      })
+      const response = await fetch(`/api/admin/transactions?${params}`)
+      if (!response.ok) throw new Error('Failed to fetch transactions')
+      
+      const { data, pagination } = await response.json()
       setTransactions(data)
+      setTotalPages(pagination.totalPages)
+      setTotalTransactions(pagination.total)
+      if (currentPage > pagination.totalPages) {
+        setCurrentPage(pagination.totalPages || 1)
+      }
     } catch (error) {
       console.error("Erro ao carregar transações:", error)
       toast({
@@ -63,27 +79,6 @@ export function TransactionsTable() {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  const applyFilters = () => {
-    let filtered = [...transactions]
-
-    if (searchTerm) {
-      filtered = filtered.filter(t => 
-        t.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.reference.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }
-
-    if (filterType !== "all") {
-      filtered = filtered.filter(t => t.type === filterType)
-    }
-
-    if (filterStatus !== "all") {
-      filtered = filtered.filter(t => t.status === filterStatus)
-    }
-
-    setFilteredTransactions(filtered)
   }
 
   const handleViewTransaction = (transaction: ITransaction) => {
@@ -107,23 +102,27 @@ export function TransactionsTable() {
     if (!selectedTransaction) return
 
     try {
-      await transactionService.updateTransaction(selectedTransaction.id, {
-        status,
-        admin_note: adminNote
+      const response = await fetch(`/api/admin/transactions/${selectedTransaction.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status,
+          admin_note: adminNote
+        })
       })
+
+      if (!response.ok) throw new Error('Failed to update transaction')
 
       toast({
         title: "Sucesso",
         description: `Transação ${status === 'completed' ? 'aprovada' : 'rejeitada'} com sucesso`,
       })
 
-      // Atualiza localmente
-      setTransactions(transactions.map(t => 
-        t.id === selectedTransaction.id ? { ...t, status } : t
-      ))
-
       setModalType(null)
       setSelectedTransaction(null)
+      await loadTransactions()
     } catch (error) {
       console.error("Erro ao atualizar transação:", error)
       toast({
@@ -236,7 +235,7 @@ export function TransactionsTable() {
       <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
           <CardTitle className="text-white">
-            Lista de Transações ({filteredTransactions.length})
+            Lista de Transações ({totalTransactions})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -255,7 +254,7 @@ export function TransactionsTable() {
                 </tr>
               </thead>
               <tbody>
-                {filteredTransactions.map((transaction) => (
+                {transactions.map((transaction) => (
                   <tr key={transaction.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
                     <td className="py-4 px-4">
                       <div>
@@ -349,6 +348,28 @@ export function TransactionsTable() {
           </div>
         </CardContent>
       </Card>
+
+      {!isLoading && totalPages > 1 && (
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious 
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
+              />
+            </PaginationItem>
+            <span className="mx-2 text-sm text-gray-400">
+              Página {currentPage} de {totalPages}
+            </span>
+            <PaginationItem>
+              <PaginationNext 
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      )}
 
       {/* Modal de Visualização */}
       {modalType === "view" && selectedTransaction && (

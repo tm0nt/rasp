@@ -488,7 +488,7 @@ if (window.gtag) {
         <div className="flex flex-col h-[calc(100vh-12rem)] px-6 py-6 animate-in slide-in-from-bottom duration-500 delay-200">
           {/* Logo */}
           <div className="mb-8 text-center animate-in fade-in duration-500 delay-300">
-            <Image src="/images/logo.png" alt="Raspou Ganhou" width={120} height={40} className="h-8 w-auto mx-auto" />
+            <Image src="/images/logo.png" alt="Raspou Ganhou" width={150} height={40} className="mx-auto" />
           </div>
 
           {/* Mobile Form Content */}

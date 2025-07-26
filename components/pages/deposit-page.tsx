@@ -184,43 +184,6 @@ export function DepositPage({ onBack, user, onLogout, onNavigate }: DepositPageP
       duration: 8000,
     })
 
-    const handlePaymentSuccess = async () => {
-  const amount = getCurrentAmount()
-
-  if (timerRef.current) {
-    clearInterval(timerRef.current)
-  }
-
-  showToast({
-    type: "success",
-    title: "💰 Depósito confirmado!",
-    message: `R$ ${amount.toFixed(2)} foi adicionado à sua conta com sucesso.`,
-    duration: 8000,
-  })
-
-  // 🔵 Facebook Pixel - Evento de compra
-  if (window.fbq) {
-    window.fbq('track', 'Purchase', {
-      value: amount,
-      currency: 'BRL',
-    })
-  }
-
-  // 🟢 Google Ads / Analytics - Conversão
-  if (window.gtag) {
-    window.gtag('event', 'purchase', {
-      value: amount,
-      currency: 'BRL',
-      transaction_id: `txn-${Date.now()}`, // ou use um ID real se tiver
-    })
-  }
-
-  setTimeout(() => {
-    onNavigate("wallet")
-  }, 2000)
-}
-
-
     setTimeout(() => {
       onNavigate("wallet")
     }, 2000)
@@ -428,12 +391,7 @@ export function DepositPage({ onBack, user, onLogout, onNavigate }: DepositPageP
       <div className="max-w-2xl mx-auto">
         <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm">
           <CardContent className="p-8">
-            <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-xl p-4 mb-8 backdrop-blur-sm">
-              <Shield className="w-5 h-5 text-green-400" />
-              <span className="text-green-400 text-sm font-medium">Método de pagamento seguro</span>
-            </div>
-
-            <div className="mb-8">
+            <div className="mb-4">
               <h3 className="text-white text-lg font-semibold mb-6">Método de pagamento</h3>
               <div className="grid grid-cols-1 gap-4">
                 <button className="relative flex items-center justify-center gap-3 p-6 rounded-xl border-2 border-green-500 bg-green-500/10 text-green-400 shadow-lg shadow-green-500/20">
