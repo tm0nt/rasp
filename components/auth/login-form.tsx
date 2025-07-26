@@ -47,7 +47,7 @@ export function LoginForm({
 
   return (
     <>
-      <form onSubmit={onSubmit} className="space-y-6 pb-24 md:pb-0">
+      <form id="login-form" onSubmit={onSubmit} className="space-y-6 pb-24 md:pb-0">
         <p className="text-gray-300 text-sm">Acesse sua conta com suas credenciais</p>
 
         <LoginMethodTabs activeMethod={loginMethod} onMethodChange={handleMethodChange} />
@@ -86,7 +86,7 @@ export function LoginForm({
           </button>
         </div>
 
-        {/* Submit button - apenas desktop */}
+        {/* Submit button - Apenas desktop */}
         <Button
           type="submit"
           disabled={isLoading}

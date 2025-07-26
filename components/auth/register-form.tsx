@@ -30,7 +30,7 @@ export function RegisterForm({
 }: RegisterFormProps) {
   return (
     <>
-      <form onSubmit={onSubmit} className="space-y-6 pb-24 md:pb-0">
+      <form id="register-form" onSubmit={onSubmit} className="space-y-6 pb-24 md:pb-0">
         <p className="text-gray-300 text-sm">Crie sua conta gratuita. Vamos começar?</p>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-1">
