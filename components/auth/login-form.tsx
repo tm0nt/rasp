@@ -35,6 +35,7 @@ export function LoginForm({
 }: LoginFormProps) {
   const [loginMethod, setLoginMethod] = useState<"email" | "phone">("email")
 
+  // Limpa o campo não utilizado quando troca o método
   const handleMethodChange = (method: "email" | "phone") => {
     if (method === "email") {
       onFormDataChange("phone", "")
@@ -45,36 +46,18 @@ export function LoginForm({
   }
 
   return (
-    <form
-      id="login-form"
-      onSubmit={onSubmit}
-      className="space-y-6 pb-36 md:pb-0 relative"
-    >
-      <p className="text-gray-300 text-sm">
-        Acesse sua conta com suas credenciais
-      </p>
+    <form onSubmit={onSubmit} className="space-y-6">
+      <p className="text-gray-300 text-sm">Acesse sua conta com suas credenciais</p>
 
-      <LoginMethodTabs
-        activeMethod={loginMethod}
-        onMethodChange={handleMethodChange}
-      />
+      <LoginMethodTabs activeMethod={loginMethod} onMethodChange={handleMethodChange} />
 
       <div className="space-y-4">
         <IconInput
           icon={loginMethod === "email" ? Mail : Phone}
           type={loginMethod === "email" ? "email" : "tel"}
           placeholder={loginMethod === "email" ? "E-mail" : "Telefone"}
-          value={
-            loginMethod === "email"
-              ? formData.email || ""
-              : formData.phone || ""
-          }
-          onChange={(value) =>
-            onFormDataChange(
-              loginMethod === "email" ? "email" : "phone",
-              value
-            )
-          }
+          value={loginMethod === "email" ? formData.email || "" : formData.phone || ""}
+          onChange={(value) => onFormDataChange(loginMethod === "email" ? "email" : "phone", value)}
           required
         />
 
@@ -86,12 +69,11 @@ export function LoginForm({
         />
       </div>
 
+      {/* Remember me and forgot password */}
       <div className="flex items-center justify-between">
         <RememberMeCheckbox
           checked={formData.rememberMe}
-          onCheckedChange={(checked) =>
-            onFormDataChange("rememberMe", checked)
-          }
+          onCheckedChange={(checked) => onFormDataChange("rememberMe", checked)}
           id="remember-login"
         />
         <button
@@ -103,11 +85,11 @@ export function LoginForm({
         </button>
       </div>
 
-      {/* Botão desktop */}
+      {/* Submit button */}
       <Button
         type="submit"
         disabled={isLoading}
-        className="w-full bg-green-500 hover:bg-green-600 text-white py-3 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/25 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed hidden md:block"
+        className="w-full bg-green-500 hover:bg-green-600 text-white py-3 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/25 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isLoading ? (
           <div className="flex items-center justify-center">
@@ -119,23 +101,6 @@ export function LoginForm({
         )}
       </Button>
 
-      {/* Botão mobile fixo dentro do form */}
-      <div className="md:hidden absolute bottom-0 left-0 w-full p-4 bg-background border-t border-gray-700 z-50">
-        <Button
-          type="submit"
-          disabled={isLoading}
-          className="w-full bg-green-500 hover:bg-green-600 text-white py-3 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/25 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isLoading ? (
-            <div className="flex items-center justify-center">
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-              Entrando...
-            </div>
-          ) : (
-            "Entrar"
-          )}
-        </Button>
-      </div>
     </form>
   )
 }
