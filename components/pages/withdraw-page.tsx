@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,6 +27,7 @@ interface WithdrawPageProps {
 export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPageProps) {
   const [withdrawAmount, setWithdrawAmount] = useState("")
   const [pixKey, setPixKey] = useState("")
+  const [cpf, setCpf] = useState("")
   const [pixKeyType, setPixKeyType] = useState<"cpf" | "email" | "phone" | "random">("cpf")
   const [isProcessing, setIsProcessing] = useState(false)
   const [selectedWallet, setSelectedWallet] = useState<"balance" | "referral">("balance")
@@ -36,15 +37,92 @@ export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPag
   const availableAmount = selectedWallet === "balance" ? user.balance : user.referralEarnings
   const maxWithdraw = Math.min(availableAmount, 5000)
 
+  // Formatadores de máscara
+  const formatCpf = (value: string) => {
+    const cleaned = value.replace(/\D/g, '')
+    const match = cleaned.match(/^(\d{0,3})(\d{0,3})(\d{0,3})(\d{0,2})$/)
+    if (!match) return value
+    
+    return !match[2] 
+      ? match[1] 
+      : `${match[1]}.${match[2]}${match[3] ? `.${match[3]}` : ''}${match[4] ? `-${match[4]}` : ''}`
+  }
+
+  const formatPhone = (value: string) => {
+    const cleaned = value.replace(/\D/g, '')
+    const match = cleaned.match(/^(\d{0,2})(\d{0,5})(\d{0,4})$/)
+    if (!match) return value
+    
+    return !match[2] 
+      ? `(${match[1]}` 
+      : `(${match[1]}) ${match[2]}${match[3] ? `-${match[3]}` : ''}`
+  }
+
+  const formatCurrency = (value: string): string => {
+    // Remove todos os caracteres não numéricos
+    let cleaned = value.replace(/\D/g, '')
+    
+    // Converte para número e divide por 100 para obter os decimais
+    const number = Number(cleaned) / 100
+    
+    // Formata para moeda BRL
+    return number.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 2
+    }).replace('R$', '').trim()
+  }
+
+  const parseCurrency = (value: string): number => {
+    // Remove todos os caracteres não numéricos e divide por 100
+    return Number(value.replace(/\D/g, '')) / 100
+  }
+
+  const handleInputChange = (value: string, type: "cpf" | "email" | "phone" | "random") => {
+    if (type === "cpf") {
+      setPixKey(formatCpf(value).slice(0, 14))
+    } else if (type === "phone") {
+      setPixKey(formatPhone(value).slice(0, 15))
+    } else {
+      setPixKey(value)
+    }
+  }
+
+  const handleCpfChange = (value: string) => {
+    setCpf(formatCpf(value).slice(0, 14))
+  }
+
+  const handleAmountChange = (value: string) => {
+    // Se o campo estiver vazio, limpa o valor
+    if (value === '') {
+      setWithdrawAmount('')
+      return
+    }
+    
+    // Formata o valor como moeda
+    setWithdrawAmount(formatCurrency(value))
+  }
+
+  const handlePixKeyTypeChange = (type: "cpf" | "email" | "phone" | "random") => {
+    // Mantém o valor atual se o tipo for o mesmo
+    if (type === pixKeyType) return
+    
+    // Limpa apenas se o tipo for diferente
+    if (type !== pixKeyType) {
+      setPixKey('')
+    }
+    setPixKeyType(type)
+  }
+
   const handleWithdraw = async () => {
-    const amount = Number.parseFloat(withdrawAmount)
+    const amount = parseCurrency(withdrawAmount)
     const withdrawType = selectedWallet
 
-    if (!amount || amount < minWithdraw || amount > maxWithdraw || !pixKey) {
+    if (!amount || amount < minWithdraw || amount > maxWithdraw || !pixKey || !cpf) {
       showToast({
         type: "error",
         title: "❌ Dados inválidos",
-        message: "Verifique o valor e a chave PIX antes de continuar.",
+        message: "Verifique o valor, a chave PIX e o CPF antes de continuar.",
         duration: 5000,
       })
       return
@@ -56,7 +134,13 @@ export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPag
       const response = await fetch('/api/user/withdraw', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount, pixKey, pixKeyType, withdrawType })
+        body: JSON.stringify({ 
+          amount, // Já está como float devido ao parseCurrency
+          pixKey: pixKey.replace(/\D/g, ''), // Remove formatação
+          pixKeyType, 
+          withdrawType,
+          cpf: cpf.replace(/\D/g, '') // Remove formatação do CPF
+        })
       })
 
       const result = await response.json()
@@ -92,6 +176,7 @@ export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPag
 
       setWithdrawAmount("")
       setPixKey("")
+      setCpf("")
       onNavigate("wallet", { updatedUser })
 
     } catch (error: any) {
@@ -158,10 +243,10 @@ export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPag
             <div>
               <label className="block text-gray-300 mb-2">Valor (R$)</label>
               <Input
-                type="number"
+                type="text"
                 placeholder="0,00"
                 value={withdrawAmount}
-                onChange={(e) => setWithdrawAmount(e.target.value)}
+                onChange={(e) => handleAmountChange(e.target.value)}
                 className="bg-gray-800 border-gray-700 text-white"
               />
               <div className="text-sm text-gray-400 mt-1 flex justify-between">
@@ -183,7 +268,7 @@ export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPag
                     key={type.value}
                     variant={pixKeyType === type.value ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setPixKeyType(type.value as any)}
+                    onClick={() => handlePixKeyTypeChange(type.value as any)}
                     className={pixKeyType === type.value
                       ? "bg-green-500 hover:bg-green-600 text-white"
                       : "border-gray-600 text-gray-300 hover:bg-gray-800"}
@@ -204,11 +289,22 @@ export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPag
                     : pixKeyType === "email"
                       ? "seu@email.com"
                       : pixKeyType === "phone"
-                        ? "(11) 99999-9999"
+                        ? "(00) 00000-0000"
                         : "Chave aleatória"
                 }
                 value={pixKey}
-                onChange={(e) => setPixKey(e.target.value)}
+                onChange={(e) => handleInputChange(e.target.value, pixKeyType)}
+                className="bg-gray-800 border-gray-700 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-gray-300 mb-2">CPF do Titular</label>
+              <Input
+                type="text"
+                placeholder="000.000.000-00"
+                value={cpf}
+                onChange={(e) => handleCpfChange(e.target.value)}
                 className="bg-gray-800 border-gray-700 text-white"
               />
             </div>
@@ -217,9 +313,10 @@ export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPag
               onClick={handleWithdraw}
               disabled={
                 !withdrawAmount ||
-                Number.parseFloat(withdrawAmount) < minWithdraw ||
-                Number.parseFloat(withdrawAmount) > maxWithdraw ||
+                parseCurrency(withdrawAmount) < minWithdraw ||
+                parseCurrency(withdrawAmount) > maxWithdraw ||
                 !pixKey ||
+                !cpf ||
                 isProcessing
               }
               className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 font-semibold rounded-xl"

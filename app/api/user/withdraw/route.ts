@@ -10,6 +10,7 @@ const withdrawalSchema = z.object({
   pixKey: z.string().min(5, 'Chave PIX inválida'),
   pixKeyType: z.enum(['cpf', 'email', 'phone', 'random']),
   withdrawType: z.enum(['balance', 'referral']),
+  cpf: z.string().min(11, 'CPF inválido').max(14, 'CPF inválido'),
 })
 
 export async function POST(request: Request) {
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const { amount, pixKey, pixKeyType, withdrawType } = validation.data
+    const { amount, pixKey, pixKeyType, withdrawType, cpf } = validation.data
     const field = withdrawType === 'balance' ? 'balance' : 'referral_earnings'
 
     // Verificar saldo do usuário
@@ -75,7 +76,12 @@ export async function POST(request: Request) {
         JSON.stringify({
           pixKey,
           pixKeyType,
-          requestedAt: new Date().toISOString()
+          cpfHolder: cpf.replace(/\D/g, ''), // Armazena apenas números
+          requestedAt: new Date().toISOString(),
+          additionalInfo: {
+            withdrawSource: withdrawType,
+            userIp: request.headers.get('x-forwarded-for') || 'unknown'
+          }
         })
       ]
     )
@@ -90,7 +96,12 @@ export async function POST(request: Request) {
       success: true,
       withdrawal: {
         ...result.rows[0],
-        amount: parseFloat(result.rows[0].amount)
+        amount: parseFloat(result.rows[0].amount),
+        metadata: {
+          ...result.rows[0].metadata,
+          // Ocultamos parte do CPF por segurança na resposta
+          cpfHolder: `${cpf.substring(0, 3)}.***.***-${cpf.substring(9)}`
+        }
       }
     })
 

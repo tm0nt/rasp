@@ -11,7 +11,6 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
-import type { ITransaction } from "@/types/admin" // Assuming this exists based on previous patterns
 
 interface ITransaction {
   id: string
@@ -24,7 +23,22 @@ interface ITransaction {
   description: string
   reference: string
   created_at: string
-  metadata: any
+  metadata: {
+    pixKey: string
+    cpfHolder: string
+    pixKeyType: string
+    requestedAt: string
+    additionalInfo: {
+      userIp: string
+      withdrawSource: string
+    }
+    pixResponse?: any
+    processedAt?: string
+    adminApprovedBy?: string
+    adminRejectedAt?: string
+    rejectionReason?: string
+    adminRejectedBy?: string
+  }
 }
 
 export function TransactionsTable() {
@@ -60,20 +74,25 @@ export function TransactionsTable() {
         limit: limit.toString(),
       })
       const response = await fetch(`/api/admin/transactions?${params}`)
-      if (!response.ok) throw new Error('Failed to fetch transactions')
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to fetch transactions')
+      }
       
       const { data, pagination } = await response.json()
       setTransactions(data)
       setTotalPages(pagination.totalPages)
       setTotalTransactions(pagination.total)
-      if (currentPage > pagination.totalPages) {
-        setCurrentPage(pagination.totalPages || 1)
+      
+      if (currentPage > pagination.totalPages && pagination.totalPages > 0) {
+        setCurrentPage(pagination.totalPages)
       }
     } catch (error) {
       console.error("Erro ao carregar transações:", error)
       toast({
         title: "Erro",
-        description: "Não foi possível carregar as transações",
+        description: error instanceof Error ? error.message : 'Não foi possível carregar as transações',
         variant: "destructive"
       })
     } finally {
@@ -98,36 +117,48 @@ export function TransactionsTable() {
     setAdminNote("")
   }
 
-  const handleStatusUpdate = async (status: 'completed' | 'cancelled') => {
+  const handleStatusUpdate = async (action: 'approve' | 'reject') => {
     if (!selectedTransaction) return
 
     try {
-      const response = await fetch(`/api/admin/transactions/${selectedTransaction.id}`, {
-        method: 'PATCH',
+      if (action === 'reject' && !adminNote) {
+        toast({
+          title: "Aviso",
+          description: "Por favor, informe o motivo da rejeição",
+          variant: "destructive"
+        })
+        return
+      }
+
+      const response = await fetch(`/api/admin/withdraw/${selectedTransaction.id}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          status,
-          admin_note: adminNote
+          action,
+          reason: adminNote
         })
       })
 
-      if (!response.ok) throw new Error('Failed to update transaction')
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update withdrawal')
+      }
 
       toast({
         title: "Sucesso",
-        description: `Transação ${status === 'completed' ? 'aprovada' : 'rejeitada'} com sucesso`,
+        description: `Saque ${action === 'approve' ? 'aprovado' : 'rejeitado'} com sucesso`,
       })
 
       setModalType(null)
       setSelectedTransaction(null)
       await loadTransactions()
     } catch (error) {
-      console.error("Erro ao atualizar transação:", error)
+      console.error("Erro ao atualizar saque:", error)
       toast({
         title: "Erro",
-        description: `Não foi possível ${status === 'completed' ? 'aprovar' : 'rejeitar'} a transação`,
+        description: error instanceof Error ? error.message : 'Ocorreu um erro ao processar a requisição',
         variant: "destructive"
       })
     }
@@ -432,10 +463,55 @@ export function TransactionsTable() {
                   {new Date(selectedTransaction.created_at).toLocaleString("pt-BR")}
                 </p>
               </div>
-              {selectedTransaction.metadata?.admin_note && (
+
+              {/* Seção específica para saques */}
+              {selectedTransaction.type === 'withdrawal' && (
+                <div className="col-span-2 space-y-2">
+                  <Label className="text-gray-400">Detalhes do PIX</Label>
+                  <div className="bg-gray-700/50 p-3 rounded-lg">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-gray-400 text-sm">Chave PIX:</span>
+                        <p className="text-white">{selectedTransaction.metadata.pixKey}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 text-sm">Tipo:</span>
+                        <p className="text-white capitalize">
+                          {selectedTransaction.metadata.pixKeyType}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 text-sm">CPF Titular:</span>
+                        <p className="text-white">
+                          {selectedTransaction.metadata.cpfHolder}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 text-sm">Solicitado em:</span>
+                        <p className="text-white">
+                          {new Date(selectedTransaction.metadata.requestedAt).toLocaleString("pt-BR")}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Resposta do PIX (se disponível) */}
+              {selectedTransaction.metadata.pixResponse && (
+                <div className="col-span-2 space-y-2">
+                  <Label className="text-gray-400">Resposta do PIX</Label>
+                  <pre className="bg-gray-700/50 p-3 rounded-lg text-xs text-white overflow-auto">
+                    {JSON.stringify(selectedTransaction.metadata.pixResponse, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {/* Motivo de rejeição (se disponível) */}
+              {selectedTransaction.metadata.rejectionReason && (
                 <div className="col-span-2">
-                  <Label className="text-gray-400">Observação do Admin</Label>
-                  <p className="text-white">{selectedTransaction.metadata.admin_note}</p>
+                  <Label className="text-gray-400">Motivo da Rejeição</Label>
+                  <p className="text-white">{selectedTransaction.metadata.rejectionReason}</p>
                 </div>
               )}
             </div>
@@ -468,6 +544,24 @@ export function TransactionsTable() {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label className="text-gray-400">Detalhes do PIX</Label>
+                <div className="bg-gray-700/50 p-3 rounded-lg">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-gray-400 text-sm">Chave PIX:</span>
+                      <p className="text-white">{selectedTransaction.metadata.pixKey}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 text-sm">Tipo:</span>
+                      <p className="text-white capitalize">
+                        {selectedTransaction.metadata.pixKeyType}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <Label htmlFor="adminNote" className="text-gray-400">
                   Observação (opcional)
@@ -490,7 +584,7 @@ export function TransactionsTable() {
                 Cancelar
               </Button>
               <Button
-                onClick={() => handleStatusUpdate('completed')}
+                onClick={() => handleStatusUpdate('approve')}
                 className="bg-green-600 hover:bg-green-700"
               >
                 Confirmar Aprovação
@@ -548,7 +642,7 @@ export function TransactionsTable() {
                 Cancelar
               </Button>
               <Button
-                onClick={() => handleStatusUpdate('cancelled')}
+                onClick={() => handleStatusUpdate('reject')}
                 className="bg-red-600 hover:bg-red-700"
                 disabled={!adminNote}
               >
