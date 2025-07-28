@@ -194,7 +194,7 @@ export async function PUT(
 
       queryString = `
         UPDATE payment_transactions
-        SET status = 'processing',
+        SET status = 'completed',
             metadata = jsonb_set(
               jsonb_set(
                 jsonb_set(

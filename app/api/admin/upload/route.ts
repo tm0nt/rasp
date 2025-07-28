@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     await sharp(buffer).png().toFile(filepath)
 
     // URL pública do arquivo
-    const fileUrl = `/uploads/${filename}`
+    const fileUrl = `/images/${filename}`
 
     // Atualizar no banco de dados
     const settingKey = type === 'logo' ? 'site_logo' : 'site_favicon'
