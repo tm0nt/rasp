@@ -48,7 +48,6 @@ export function RegisterForm({ formData, onFormDataChange, onSubmit, onSwitchToL
             onChange={(value) => onFormDataChange("email", value)}
             required
           />
-
           <IconInput
             icon={Phone}
             type="tel"
@@ -86,7 +85,6 @@ export function RegisterForm({ formData, onFormDataChange, onSubmit, onSwitchToL
           </>
         )}
       </Button>
-
     </form>
   )
 }
