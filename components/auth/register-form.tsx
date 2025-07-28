@@ -39,7 +39,7 @@ export function RegisterForm({ formData, onFormDataChange, onSubmit, onSwitchToL
         />
 
         {/* Grid for Email and Phone */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <IconInput
             icon={Mail}
             type="email"
