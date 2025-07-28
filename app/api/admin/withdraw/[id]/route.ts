@@ -167,9 +167,10 @@ export async function PUT(
         external_id: transaction.id
       }
 
-      console.log('Enviando requisição PIX:', pixPayload)
+      console.log('Enviando requisição PIX via proxy local...', pixPayload)
 
-      const pixResponse = await fetch('https://api.pixupbr.com/v2/pix/payment', {
+      // Modified to use local proxy instead of direct API call
+      const pixResponse = await fetch('http://localhost:4141/payment', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -181,15 +182,15 @@ export async function PUT(
 
       if (!pixResponse.ok) {
         const errorData = await pixResponse.json()
-        console.error('Erro na API PIX:', errorData)
+        console.error('Erro na API PIX via proxy:', errorData)
         return NextResponse.json(
-          { error: 'Falha ao processar o pagamento PIX', details: errorData },
+          { error: 'Falha ao processar o pagamento PIX via proxy', details: errorData },
           { status: 502 }
         )
       }
 
       const pixData = await pixResponse.json()
-      console.log('Resposta da API PIX:', pixData)
+      console.log('Resposta da API PIX via proxy:', pixData)
 
       queryString = `
         UPDATE payment_transactions
@@ -295,7 +296,7 @@ export async function PUT(
       success: true,
       data: result.rows[0],
       message: action === 'approve'
-        ? 'Saque aprovado e PIX enviado para processamento'
+        ? 'Saque aprovado e PIX enviado para processamento via proxy local'
         : 'Saque recusado e valor devolvido'
     })
 
