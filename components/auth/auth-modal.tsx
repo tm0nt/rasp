@@ -421,11 +421,6 @@ if (window.gtag) {
                 <X className="w-6 h-6" />
               </button>
 
-              {/* Logo */}
-              <div className="mb-8 animate-in slide-in-from-top-4 duration-500 delay-200">
-                <Image src="/images/logo.png" alt="Raspou Ganhou" width={120} height={40} className="h-8 w-auto" />
-              </div>
-
               {/* Form Content */}
               <div className="animate-in slide-in-from-bottom-4 duration-500 delay-400">
                 {showForgotPassword ? (
