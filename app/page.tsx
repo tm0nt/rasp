@@ -121,19 +121,12 @@ function RaspouGanhouApp() {
         credentials: "include",
       })
       const promotionsData = await promotionsResponse.json()
-      if (!promotionsResponse.ok) {
-        throw new Error(promotionsData.error || "Erro ao carregar promoções")
-      }
-
       const configResponse = await fetch("/api/config/app", {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
       })
       const configData = await configResponse.json()
       setRtp(configData.rtp_value)
-      if (!configResponse.ok) {
-        throw new Error(configData.error || "Erro ao carregar configuração")
-      }
     } catch (error) {
       console.error("Failed to load initial data:", error)
       await fetch("/api/errors/log", {

@@ -6,25 +6,47 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { ClientProviders } from "@/components/ClientProviders";
 import Script from 'next/script';
+import { cache } from 'react';
 import { cookies } from 'next/headers';
 
 const inter = Inter({ subsets: ["latin"] });
 
-export async function generateMetadata(): Promise<Metadata> {
-  const cookieStore = await cookies();
+const getAppConfig = cache(() => {
+  const cookieStore = cookies();
   
-  // Valores padrão caso os cookies não existam
-  const defaults = {
-    title: "Raspou Ganhou - Raspadinhas Online",
-    description: "Jogue raspadinhas online e ganhe prêmios incríveis!",
-    keywords: "raspadinha, jogos online, prêmios, PIX",
-    siteName: "Raspou Ganhou"
+  const getCookieValue = (name: string) => {
+    const value = cookieStore.get(name)?.value;
+    return value ? decodeURIComponent(value) : '';
   };
 
   return {
-    title: cookieStore.get('app_site_name')?.value || defaults.title,
-    description: cookieStore.get('app_site_description')?.value || defaults.description,
-    keywords: cookieStore.get('app_meta_keywords')?.value || defaults.keywords,
+    data: {
+      site_name: getCookieValue('app_site_name'),
+      site_description: getCookieValue('app_site_description'),
+      seo_meta_keywords: getCookieValue('app_meta_keywords'),
+      site_favicon: getCookieValue('app_site_favicon'),
+      site_url: getCookieValue('app_site_url'),
+      seo_google_analytics: getCookieValue('app_ga_id'),
+      seo_facebook_pixel: getCookieValue('app_fb_pixel') || '', // Assuming cookie name; adjust if different
+      support_email: getCookieValue('app_support_email'),
+      support_phone: getCookieValue('app_support_phone'),
+      welcome_bonus: getCookieValue('app_welcome_bonus') || '', // Assuming cookie name; adjust if different
+      referral_bonus: getCookieValue('app_referral_bonus') || '', // Assuming cookie name; adjust if different
+      min_withdrawal: getCookieValue('app_min_withdrawal') || '', // Assuming cookie name; adjust if different
+      maintenance_mode: getCookieValue('app_maintenance_mode') || 'false', // Assuming cookie name; adjust if different
+      rtp_value: getCookieValue('app_rtp_value') || '', // Assuming cookie name; adjust if different
+    }
+  };
+});
+
+export async function generateMetadata(): Promise<Metadata> {
+  const appConfig = getAppConfig();
+  const configData = appConfig?.data || {};
+
+  return {
+    title: configData.site_name || "Raspou Ganhou - Raspadinhas Online",
+    description: configData.site_description || "Jogue raspadinhas online e ganhe prêmios incríveis!",
+    keywords: configData.seo_meta_keywords || "raspadinha, jogos online, prêmios, PIX",
   }
 }
 
@@ -33,44 +55,52 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const [session, cookieStore] = await Promise.all([
+  const [session, appConfig] = await Promise.all([
     getServerSession(authOptions),
-    cookies()
+    Promise.resolve(getAppConfig())
   ]);
 
-  const gaId = cookieStore.get('app_ga_id')?.value;
-  const fbPixel = cookieStore.get('app_fb_pixel')?.value;
+  const configData = appConfig?.data || {};
 
-  // Configurações básicas do app
-  const appConfig = {
-    siteName: cookieStore.get('app_site_name')?.value || "Raspou Ganhou",
-    seo_google_analytics: gaId,
-    seo_facebook_pixel: fbPixel
+  // App configuration
+  const appConfigData = {
+    siteName: configData.site_name,
+    siteUrl: configData.site_url,
+    seo_google_analytics: configData.seo_google_analytics,
+    seo_facebook_pixel: configData.seo_facebook_pixel,
+    supportEmail: configData.support_email,
+    supportPhone: configData.support_phone,
+    welcomeBonus: configData.welcome_bonus,
+    referralBonus: configData.referral_bonus,
+    minWithdrawal: configData.min_withdrawal,
+    rtpValue: configData.rtp_value
   };
 
   return (
     <html lang="pt-BR">
       <head>
         {/* Google Analytics */}
-        {gaId && (
+        {appConfigData.seo_google_analytics && (
           <>
             <Script
               strategy="afterInteractive"
-              src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+              src={`https://www.googletagmanager.com/gtag/js?id=${appConfigData.seo_google_analytics}`}
             />
             <Script id="google-analytics" strategy="afterInteractive">
               {`
                 window.dataLayer = window.dataLayer || [];
                 function gtag(){dataLayer.push(arguments);}
                 gtag('js', new Date());
-                gtag('config', '${gaId}');
+                gtag('config', '${appConfigData.seo_google_analytics}', {
+                  page_path: window.location.pathname,
+                });
               `}
             </Script>
           </>
         )}
 
         {/* Facebook Pixel */}
-        {fbPixel && (
+        {appConfigData.seo_facebook_pixel && (
           <Script id="facebook-pixel" strategy="afterInteractive">
             {`
               !function(f,b,e,v,n,t,s) {
@@ -81,27 +111,30 @@ export default async function RootLayout({
                 t.src=v;s=b.getElementsByTagName(e)[0];
                 s.parentNode.insertBefore(t,s)}(window, document,'script',
                 'https://connect.facebook.net/en_US/fbevents.js');
-                fbq('init', '${fbPixel}');
+                fbq('init', '${appConfigData.seo_facebook_pixel}');
                 fbq('track', 'PageView');
             `}
           </Script>
         )}
+
+        {/* Favicon */}
+        <link rel="icon" href={configData.site_favicon || "/favicon.ico"} />
       </head>
       <body className={inter.className}>
         <Providers session={session}>
-          <ClientProviders appConfig={appConfig}>
+          <ClientProviders appConfig={appConfigData}>
             {children}
           </ClientProviders>
         </Providers>
 
         {/* Facebook Pixel noscript fallback */}
-        {fbPixel && (
+        {appConfigData.seo_facebook_pixel && (
           <noscript>
             <img
               height="1"
               width="1"
               style={{ display: 'none' }}
-              src={`https://www.facebook.com/tr?id=${fbPixel}&ev=PageView&noscript=1`}
+              src={`https://www.facebook.com/tr?id=${appConfigData.seo_facebook_pixel}&ev=PageView&noscript=1`}
               alt=""
             />
           </noscript>

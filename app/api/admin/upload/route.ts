@@ -6,9 +6,10 @@ import { query } from '@/lib/db'
 import { v4 as uuidv4 } from 'uuid'
 import fs from 'fs'
 import path from 'path'
+import sharp from 'sharp'
 
 // Configurações de upload
-const UPLOAD_DIR = path.join(process.cwd(), 'public/uploads')
+const UPLOAD_DIR = path.join(process.cwd(), 'public/images')
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/svg+xml', 'image/x-icon']
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 
@@ -59,13 +60,12 @@ export async function POST(request: Request) {
     // Ler o buffer do arquivo
     const buffer = Buffer.from(await file.arrayBuffer())
     
-    // Gerar nome único para o arquivo
-    const extension = path.extname(file.name)
-    const filename = `${type}-${uuidv4()}${extension}`
+    // Nome fixo para o arquivo, sempre .png
+    const filename = `${type}.png`
     const filepath = path.join(UPLOAD_DIR, filename)
     
-    // Salvar o arquivo
-    await fs.promises.writeFile(filepath, buffer)
+    // Converter para PNG e salvar o arquivo
+    await sharp(buffer).png().toFile(filepath)
 
     // URL pública do arquivo
     const fileUrl = `/uploads/${filename}`
