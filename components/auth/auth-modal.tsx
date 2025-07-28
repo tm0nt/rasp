@@ -481,10 +481,6 @@ if (window.gtag) {
 
         {/* Mobile Content */}
         <div className="flex flex-col h-[calc(100vh-12rem)] px-6 py-6 animate-in slide-in-from-bottom duration-500 delay-200">
-          {/* Logo */}
-          <div className="mb-8 text-center animate-in fade-in duration-500 delay-300">
-            <Image src="/images/logo.png" alt="Raspou Ganhou" width={150} height={40} className="mx-auto" />
-          </div>
 
           {/* Mobile Form Content */}
           <div className="flex-1 flex flex-col animate-in fade-in duration-500 delay-500">
