@@ -260,9 +260,7 @@ export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPag
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { value: "cpf", label: "CPF" },
-                  { value: "email", label: "Email" },
                   { value: "phone", label: "Telefone" },
-                  { value: "random", label: "Aleatória" },
                 ].map((type) => (
                   <Button
                     key={type.value}
