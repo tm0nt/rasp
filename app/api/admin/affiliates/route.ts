@@ -57,7 +57,7 @@ export async function GET(request: Request) {
         END as status
       FROM users u
       LEFT JOIN referral_bonuses r ON u.id = r.referrer_id
-      LEFT JOIN transactions t ON r.referred_id = t.user_id
+      LEFT JOIN payment_transactions t ON r.referred_id = t.user_id
       WHERE EXISTS (SELECT 1 FROM referral_bonuses WHERE referrer_id = u.id)
       GROUP BY u.id
       ORDER BY u.created_at DESC
