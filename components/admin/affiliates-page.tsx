@@ -53,46 +53,47 @@ export function AffiliatesPage() {
     cpaValue: "5.00"
   })
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const response = await fetch('/api/admin/affiliates')
-        const data = await response.json()
-        
-        if (data.success) {
-          setAffiliates(data.data.affiliates.map((a: any) => ({
-            ...a,
-            totalDeposits: Number(a.totalPixDeposit ?? 0)
-          })))
-          setStats({
-            totalAffiliates: data.data.stats.totalAffiliates,
-            totalReferrals: data.data.stats.totalReferrals,
-            totalEarned: data.data.stats.totalEarned,
-            totalPending: data.data.stats.totalPending,
-            totalDeposits: data.data.stats.totalDeposits ?? 0
-          })
-          setAffiliateSettings(data.data.settings)
-        } else {
-          toast({
-            title: "Erro",
-            description: "Falha ao carregar afiliados",
-            variant: "destructive",
-          })
-        }
-      } catch (error) {
-        console.error("Error loading affiliates:", error)
+useEffect(() => {
+  const loadData = async () => {
+    try {
+      const response = await fetch('/api/admin/affiliates')
+      const data = await response.json()
+
+      if (data.success) {
+        setAffiliates(data.data.affiliates.map((a: any) => ({
+          ...a,
+          totalDeposits: Number(a.totalDepositedByReferrals ?? 0)
+        })))
+        setStats({
+          totalAffiliates: data.data.stats.totalAffiliates,
+          totalReferrals: data.data.stats.totalReferrals,
+          totalEarned: data.data.stats.totalEarned,
+          totalPending: data.data.stats.totalPending,
+          totalDeposits: data.data.stats.totalDeposits ?? 0
+        })
+        setAffiliateSettings(data.data.settings)
+      } else {
         toast({
           title: "Erro",
           description: "Falha ao carregar afiliados",
           variant: "destructive",
         })
-      } finally {
-        setIsLoading(false)
       }
+    } catch (error) {
+      console.error("Error loading affiliates:", error)
+      toast({
+        title: "Erro",
+        description: "Falha ao carregar afiliados",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
     }
-    
-    loadData()
-  }, [toast])
+  }
+
+  loadData()
+}, [toast])
+
 
   const handleUpdateSettings = async () => {
     setIsSaving(true)

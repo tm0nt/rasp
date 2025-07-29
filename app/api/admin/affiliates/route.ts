@@ -54,6 +54,14 @@ export async function GET(request: Request) {
         ) AS referrals,
         COALESCE(SUM(CASE WHEN rb.status = 'paid' THEN rb.bonus_amount ELSE 0 END), 0) as total_earned,
         COALESCE(SUM(CASE WHEN rb.status = 'pending' THEN rb.bonus_amount ELSE 0 END), 0) as pending_earned,
+        (
+          SELECT COALESCE(SUM(pt.amount), 0)
+          FROM users r
+          JOIN payment_transactions pt ON pt.user_id = r.id
+          WHERE r.referred_by = u.id
+            AND pt.type = 'deposit'
+            AND pt.status = 'completed'
+        ) AS total_deposited_by_referrals,
         u.created_at as join_date,
         CASE 
           WHEN u.is_active = false THEN 'Inativo'
@@ -107,13 +115,14 @@ export async function GET(request: Request) {
     const settingsResult = await query(settingsQuery)
 
     // Formatar os resultados
-    const affiliates: Affiliate[] = affiliatesResult.rows.map(row => ({
+    const affiliates: (Affiliate & { totalDepositedByReferrals: number })[] = affiliatesResult.rows.map(row => ({
       id: row.id,
       name: row.name,
       email: row.email,
       referrals: parseInt(row.referrals),
       totalEarned: parseFloat(row.total_earned),
       pendingEarned: parseFloat(row.pending_earned),
+      totalDepositedByReferrals: parseFloat(row.total_deposited_by_referrals),
       joinDate: new Date(row.join_date).toISOString().split('T')[0],
       status: row.status
     }))
