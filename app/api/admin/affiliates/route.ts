@@ -69,7 +69,7 @@ export async function GET(request: Request) {
 
     const affiliatesResult = await query(affiliatesQuery, [limit, (page - 1) * limit])
 
-    // Obter estatísticas totais
+    // Obter estatísticas totais e soma total dos depósitos dos afiliados
     const statsQuery = `
       SELECT 
         COUNT(DISTINCT u.id) as total_affiliates,
@@ -82,7 +82,15 @@ export async function GET(request: Request) {
             AND pt.status = 'completed'
         ) as total_referrals,
         COALESCE(SUM(CASE WHEN rb.status = 'paid' THEN rb.bonus_amount ELSE 0 END), 0) as total_earned,
-        COALESCE(SUM(CASE WHEN rb.status = 'pending' THEN rb.bonus_amount ELSE 0 END), 0) as total_pending
+        COALESCE(SUM(CASE WHEN rb.status = 'pending' THEN rb.bonus_amount ELSE 0 END), 0) as total_pending,
+        (
+          SELECT COALESCE(SUM(pt.amount), 0)
+          FROM users r
+          JOIN payment_transactions pt ON pt.user_id = r.id
+          WHERE r.referred_by IS NOT NULL
+            AND pt.type = 'deposit'
+            AND pt.status = 'completed'
+        ) AS total_deposits
       FROM users u
       LEFT JOIN referral_bonuses rb ON u.id = rb.referrer_id
       WHERE EXISTS (SELECT 1 FROM referral_bonuses WHERE referrer_id = u.id)
@@ -110,11 +118,12 @@ export async function GET(request: Request) {
       status: row.status
     }))
 
-    const stats: AffiliateStats = {
+    const stats: AffiliateStats & { totalDeposits: number } = {
       totalAffiliates: parseInt(statsResult.rows[0].total_affiliates),
       totalReferrals: parseInt(statsResult.rows[0].total_referrals),
       totalEarned: parseFloat(statsResult.rows[0].total_earned),
-      totalPending: parseFloat(statsResult.rows[0].total_pending)
+      totalPending: parseFloat(statsResult.rows[0].total_pending),
+      totalDeposits: parseFloat(statsResult.rows[0].total_deposits)
     }
 
     const settings: AffiliateSettings = {
@@ -139,6 +148,7 @@ export async function GET(request: Request) {
     )
   }
 }
+
 
 // POST - Atualizar configurações ou pagar afiliado
 export async function POST(request: Request) {
