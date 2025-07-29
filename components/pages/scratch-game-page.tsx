@@ -4,8 +4,16 @@ import { useState, useEffect } from "react"
 import { PageLayout } from "@/components/layout/page-layout"
 import { ScratchOffGame } from "@/components/game/scratch-off-game"
 
+interface Prize {
+  id: string
+  name: string
+  value: string
+  image: string
+  isWinning?: boolean
+}
+
 interface ScratchGamePageProps {
-  rtp: string
+  rtp: number
   onBack: () => void
   user: {
     id: string
@@ -24,7 +32,7 @@ export function ScratchGamePage({ onBack, user, onLogout, onNavigate, categoryId
   const [gameKey, setGameKey] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [balance, setBalance] = useState(user.balance)
-  const [currentWinningPrize, setCurrentWinningPrize] = useState<any>(null)
+  const [revealedPrizes, setRevealedPrizes] = useState<Prize[]>([])
   const [purchaseId, setPurchaseId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -49,88 +57,124 @@ export function ScratchGamePage({ onBack, user, onLogout, onNavigate, categoryId
     { id: "12", name: "50 Centavos", value: "R$ 0,50", image: "/images/money-50-centavos.png" },
   ]
 
-  function generateGameResult() {
-    const isWinner = Math.random() < parseFloat(rtp) / 100
-    if (isWinner) {
-      const winningProbabilities = [
-        { prize: prizes[11], weight: 35 },
-        { prize: prizes[10], weight: 25 },
-        { prize: prizes[9], weight: 15 },
-        { prize: prizes[8], weight: 10 },
-        { prize: prizes[7], weight: 6 },
-        { prize: prizes[6], weight: 4 },
-        { prize: prizes[5], weight: 2.5 },
-        { prize: prizes[4], weight: 1.5 },
-        { prize: prizes[3], weight: 0.7 },
-        { prize: prizes[2], weight: 0.2 },
-        { prize: prizes[1], weight: 0.09 },
-        { prize: prizes[0], weight: 0.01 },
-      ]
-      const totalWeight = winningProbabilities.reduce((sum, item) => sum + item.weight, 0)
-      let random = Math.random() * totalWeight
-      for (const item of winningProbabilities) {
-        random -= item.weight
-        if (random <= 0) return item.prize
+  const selectWinningPrizeBasedOnRTP = () => {
+    const winningProbabilities = [
+      { prize: prizes[11], weight: 35 },   // 50 Centavos
+      { prize: prizes[10], weight: 25 },   // 1 Real
+      { prize: prizes[9], weight: 15 },    // 2 Reais
+      { prize: prizes[8], weight: 10 },    // 5 Reais
+      { prize: prizes[7], weight: 6 },     // 10 Reais
+      { prize: prizes[6], weight: 4 },     // 20 Reais
+      { prize: prizes[5], weight: 2.5 },   // 50 Reais
+      { prize: prizes[4], weight: 1.5 },   // 100 Reais
+      { prize: prizes[3], weight: 0.7 },   // 200 Reais
+      { prize: prizes[2], weight: 0.2 },   // 500 Reais
+      { prize: prizes[1], weight: 0.09 },  // Mil Reais
+      { prize: prizes[0], weight: 0.01 },  // 2 Mil Reais
+    ]
+
+    const totalWeight = winningProbabilities.reduce((sum, item) => sum + item.weight, 0)
+    let random = Math.random() * totalWeight
+    let selectedPrize = winningProbabilities[0].prize
+
+    for (const item of winningProbabilities) {
+      random -= item.weight
+      if (random <= 0) {
+        selectedPrize = item.prize
+        break
       }
     }
-    return null
+
+    return selectedPrize
+  }
+
+  const getRandomPrize = () => {
+    const randomIndex = Math.floor(Math.random() * prizes.length)
+    return prizes[randomIndex]
+  }
+
+  const generateRevealedPrizes = () => {
+    const isWinner = Math.random() < (rtp) / 100
+    const prizesGrid: Prize[] = []
+
+    if (isWinner) {
+      const winningPrize = selectWinningPrizeBasedOnRTP()
+      
+      // Adiciona 3 prêmios iguais (vencedores)
+      for (let i = 0; i < 3; i++) {
+        prizesGrid.push({ ...winningPrize, id: `win-${i}`, isWinning: true })
+      }
+      
+      // Preenche os outros 6 com prêmios aleatórios
+      for (let i = 0; i < 6; i++) {
+        const randomPrize = getRandomPrize()
+        prizesGrid.push({ ...randomPrize, id: `random-${i}` })
+      }
+    } else {
+      // Preenche todos os 9 com prêmios diferentes
+      const shuffled = [...prizes].sort(() => 0.5 - Math.random())
+      for (let i = 0; i < 9; i++) {
+        prizesGrid.push({ ...shuffled[i % shuffled.length], id: `random-${i}` })
+      }
+    }
+
+    return prizesGrid.sort(() => Math.random() - 0.5) // Embaralha
   }
 
   useEffect(() => {
-    setCurrentWinningPrize(generateGameResult())
+    setRevealedPrizes(generateRevealedPrizes())
   }, [gameKey])
 
-  const handleGameComplete = async (isWinner: boolean, prize?: any) => {
-    if (isWinner && prize && purchaseId) {
-      console.log("Jogador ganhou:", prize)
-      const amount = parseFloat(prize.value.replace("R$","").trim().replace(/\./g, "").replace(",", "."))
-      try {
-        const res = await fetch("/api/games", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "win",
-            prizeValue: prize.value
-          }),
-        })
-        if (res.ok) {
-          const data = await res.json()
-          setBalance(prev => prev + amount)
-          
-          // Update the bet result in the database
-          await fetch("/api/games/update", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              betId: purchaseId,
-              result: "won",
-              prizeId: prize.id,
-              prizeAmount: amount
-            }),
-          })
-        } else {
-          console.error("Erro ao registrar prêmio na API")
-        }
-      } catch (err) {
-        console.error("Erro na requisição /api/games", err)
+const handleGameComplete = async (isWinner: boolean, prize?: Prize) => {
+  if (!purchaseId) return
+
+  try {
+    if (isWinner && prize) {
+      const amount = parseFloat(
+        prize.value
+          .replace("R$", "")
+          .trim()
+          .replace(/\./g, "")
+          .replace(",", ".")
+      )
+
+      if (isNaN(amount)) {
+        console.error("Valor do prêmio inválido:", prize.value)
+        return
       }
-    } else if (purchaseId) {
-      // Update the bet result as lost
-      try {
-        await fetch("/api/games/update", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            betId: purchaseId,
-            result: "lost"
-          }),
-        })
-      } catch (err) {
-        console.error("Erro ao atualizar aposta como perdida", err)
+
+      const res = await fetch("/api/games", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transactionId: purchaseId,
+          action: "win",
+          prizeValue: prize.value,
+        }),
+      })
+
+      if (!res.ok) {
+        console.error("Erro ao registrar vitória")
       }
-      console.log("Jogador não ganhou desta vez")
+    } else {
+      const res = await fetch("/api/games", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transactionId: purchaseId,
+          action: "lost",
+        }),
+      })
+
+      if (!res.ok) {
+        console.error("Erro ao registrar perda")
+      }
     }
+  } catch (err) {
+    console.error("Erro na requisição para /api/games", err)
   }
+}
+
 
   const handlePlayAgain = async () => {
     if (balance < 0.5) {
@@ -151,7 +195,7 @@ export function ScratchGamePage({ onBack, user, onLogout, onNavigate, categoryId
       if (res.ok) {
         const data = await res.json()
         setBalance(prev => prev - 0.5)
-        setPurchaseId(data.purchaseId)
+        setPurchaseId(data.transactionId)
         setGameKey(prev => prev + 1)
       } else {
         const error = await res.json()
@@ -185,7 +229,7 @@ export function ScratchGamePage({ onBack, user, onLogout, onNavigate, categoryId
             <ScratchOffGame
               key={gameKey}
               prizes={prizes}
-              winningPrize={currentWinningPrize}
+              revealedPrizes={revealedPrizes}
               onGameComplete={handleGameComplete}
               onPlayAgain={handlePlayAgain}
               gamePrice={0.5}

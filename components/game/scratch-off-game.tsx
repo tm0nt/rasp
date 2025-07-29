@@ -16,24 +16,16 @@ interface Prize {
 
 interface ScratchOffGameProps {
   prizes: Prize[]
-  winningPrize?: Prize
+  revealedPrizes: Prize[] // Deve conter 9 itens (3x3 grid)
   onGameComplete: (isWinner: boolean, prize?: Prize) => void
   onPlayAgain?: () => void
   gamePrice: number
   className?: string
 }
 
-/**
- * Enhanced Scratch-Off Game Component
- *
- * Improvements:
- * - Shows scratch card content before starting
- * - Fixed scratching algorithm for complete erasure
- * - Better visual feedback and animations
- */
 export function ScratchOffGame({
   prizes,
-  winningPrize,
+  revealedPrizes, // Agora espera 9 prêmios (3x3)
   onGameComplete,
   onPlayAgain,
   gamePrice,
@@ -46,68 +38,45 @@ export function ScratchOffGame({
   const [gameState, setGameState] = useState<"initial" | "playing" | "completed">("initial")
   const [isCanvasReady, setIsCanvasReady] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
-  const [revealedPrizes, setRevealedPrizes] = useState<Prize[]>([])
-  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
 
-  const generateGameGrid = useCallback(() => {
-    const grid: Prize[] = []
-    const gridSize = 9
-    if (winningPrize) {
-      for (let i = 0; i < 3; i++) grid.push({ ...winningPrize, id: `win-${i}`, isWinning: true })
-      const remainingSlots = gridSize - 3
-      for (let i = 0; i < remainingSlots; i++) {
-        const randomPrize = prizes[Math.floor(Math.random() * prizes.length)]
-        grid.push({ ...randomPrize, id: `prize-${i}` })
-      }
-    } else {
-      for (let i = 0; i < gridSize; i++) {
-        const randomPrize = prizes[Math.floor(Math.random() * prizes.length)]
-        grid.push({ ...randomPrize, id: `prize-${i}` })
-      }
-    }
-    return grid.sort(() => Math.random() - 0.5)
-  }, [prizes, winningPrize])
+  // Verifica se há pelo menos 3 prêmios iguais (vitória)
+  const isWinningGame = revealedPrizes.filter(p => p.isWinning).length >= 3
+  const winningPrize = revealedPrizes.find(p => p.isWinning)
 
-  useEffect(() => {
-    setRevealedPrizes(generateGameGrid())
-  }, [generateGameGrid])
-
-  const drawScratchSurface = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
-    // Create a more realistic scratch surface
+  const drawScratchSurface = useCallback((ctx: CanvasRenderingContext2D, width: number, height: number) => {
+    // Cria superfície de raspadinha
     const gradient = ctx.createLinearGradient(0, 0, width, height)
-    gradient.addColorStop(0, "#c0c0c0") // Silver
-    gradient.addColorStop(0.3, "#e8e8e8") // Light gray
-    gradient.addColorStop(0.7, "#d0d0d0") // Medium gray
-    gradient.addColorStop(1, "#a8a8a8") // Darker gray
+    gradient.addColorStop(0, "#c0c0c0")
+    gradient.addColorStop(0.3, "#e8e8e8")
+    gradient.addColorStop(0.7, "#d0d0d0")
+    gradient.addColorStop(1, "#a8a8a8")
 
     ctx.fillStyle = gradient
     ctx.fillRect(0, 0, width, height)
 
-    // Add texture pattern
+    // Adiciona textura
     ctx.fillStyle = "rgba(180, 180, 180, 0.3)"
     for (let i = 0; i < width; i += 4) {
       for (let j = 0; j < height; j += 4) {
-        if (Math.random() > 0.7) {
-          ctx.fillRect(i, j, 2, 2)
-        }
+        if (Math.random() > 0.7) ctx.fillRect(i, j, 2, 2)
       }
     }
 
-    // Add scratch instruction text
+    // Texto de instrução
     ctx.fillStyle = "#666666"
     ctx.font = "bold 18px Arial"
     ctx.textAlign = "center"
     ctx.textBaseline = "middle"
     ctx.fillText("🪙 RASPE AQUI 🪙", width / 2, height / 2 - 10)
-
     ctx.font = "12px Arial"
     ctx.fillText("Encontre 3 símbolos iguais!", width / 2, height / 2 + 15)
-  }
+  }, [])
 
   const initializeCanvas = useCallback(() => {
     const canvas = canvasRef.current
     const container = containerRef.current
     if (!canvas || !container) return
+
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
@@ -118,69 +87,59 @@ export function ScratchOffGame({
     canvas.style.width = `${rect.width}px`
     canvas.style.height = `${rect.height}px`
     ctx.scale(dpr, dpr)
-    setCanvasSize({ width: rect.width, height: rect.height })
+    
     drawScratchSurface(ctx, rect.width, rect.height)
-    setTimeout(() => setIsCanvasReady(true), 50)
-  }, [])
+    setIsCanvasReady(true)
+  }, [drawScratchSurface])
 
   useEffect(() => {
     if (gameState === "playing") initializeCanvas()
+    
     const handleResize = () => {
       if (gameState === "playing") {
         setIsCanvasReady(false)
-        setTimeout(initializeCanvas, 100)
+        initializeCanvas()
       }
     }
+
     window.addEventListener("resize", handleResize)
     return () => window.removeEventListener("resize", handleResize)
   }, [gameState, initializeCanvas])
 
-  const scratch = useCallback(
-    (x: number, y: number) => {
-      const canvas = canvasRef.current
-      if (!canvas || gameState !== "playing" || !isCanvasReady) return
-      const ctx = canvas.getContext("2d")
-      if (!ctx) return
+  const scratch = useCallback((x: number, y: number) => {
+    const canvas = canvasRef.current
+    if (!canvas || gameState !== "playing" || !isCanvasReady) return
+    
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
 
-      // FIXED: Use proper destination-out for complete erasure
-      const brushSize = 40
-      ctx.globalCompositeOperation = "destination-out"
-      ctx.globalAlpha = 1.0 // Ensure full opacity for complete erasure
+    const brushSize = 40
+    ctx.globalCompositeOperation = "destination-out"
+    ctx.globalAlpha = 1.0
+    ctx.beginPath()
+    ctx.arc(x, y, brushSize, 0, 2 * Math.PI)
+    ctx.fillStyle = "rgba(0,0,0,1)"
+    ctx.fill()
 
-      // Create a solid circular brush
-      ctx.beginPath()
-      ctx.arc(x, y, brushSize, 0, 2 * Math.PI)
-      ctx.fillStyle = "rgba(0,0,0,1)" // Solid black for complete removal
-      ctx.fill()
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    const pixels = imageData.data
+    let transparentPixels = 0
+    let totalPixels = 0
 
-      // Calculate scratch percentage more accurately
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      const pixels = imageData.data
-      let transparentPixels = 0
-      let totalPixels = 0
+    for (let i = 3; i < pixels.length; i += 16) {
+      totalPixels++
+      if (pixels[i] === 0) transparentPixels++
+    }
 
-      // Check every 4th pixel for better performance
-      for (let i = 3; i < pixels.length; i += 16) {
-        totalPixels++
-        if (pixels[i] === 0) {
-          // Completely transparent
-          transparentPixels++
-        }
-      }
+    const percentage = totalPixels > 0 ? (transparentPixels / totalPixels) * 100 : 0
+    setScratchPercentage(percentage)
 
-      const percentage = totalPixels > 0 ? (transparentPixels / totalPixels) * 100 : 0
-      setScratchPercentage(percentage)
-
-      if (percentage > 50 && gameState === "playing") {
-        setGameState("completed")
-        if (winningPrize) {
-          setShowConfetti(true)
-        }
-        onGameComplete(!!winningPrize, winningPrize)
-      }
-    },
-    [gameState, isCanvasReady, winningPrize, onGameComplete],
-  )
+    if (percentage > 50 && gameState === "playing") {
+      setGameState("completed")
+      if (isWinningGame) setShowConfetti(true)
+      onGameComplete(isWinningGame, winningPrize)
+    }
+  }, [gameState, isCanvasReady, isWinningGame, onGameComplete, winningPrize])
 
   const getCanvasCoordinates = (clientX: number, clientY: number) => {
     const canvas = canvasRef.current
@@ -214,8 +173,8 @@ export function ScratchOffGame({
   const revealAll = () => {
     setScratchPercentage(100)
     setGameState("completed")
-    if (winningPrize) setShowConfetti(true)
-    onGameComplete(!!winningPrize, winningPrize)
+    if (isWinningGame) setShowConfetti(true)
+    onGameComplete(isWinningGame, winningPrize)
   }
 
   return (
@@ -224,7 +183,6 @@ export function ScratchOffGame({
 
       <Card className="bg-gradient-to-b from-gray-900 to-black border-2 border-gray-700 backdrop-blur-sm overflow-hidden shadow-2xl shadow-green-500/10">
         <CardContent className="p-4 sm:p-6">
-          {/* Show scratch card content when in initial state */}
           <div
             className="relative"
             ref={containerRef}
@@ -236,22 +194,22 @@ export function ScratchOffGame({
             onTouchMove={(e) => handleInteractionMove(e.touches[0].clientX, e.touches[0].clientY)}
             onTouchEnd={handleInteractionEnd}
           >
+            {/* Grid 3x3 fixo com 9 itens */}
             <div className="grid grid-cols-3 gap-2 sm:gap-4 p-4 sm:p-6 bg-gray-900/50 rounded-xl border border-gray-700">
-              {revealedPrizes.map((prize) => (
+              {revealedPrizes.slice(0, 9).map((prize, index) => ( // Garante no máximo 9 itens
                 <div
-                  key={prize.id}
+                  key={`${prize.id}-${index}`}
                   className={`
                     relative aspect-square rounded-lg overflow-hidden border-2 transition-all duration-500
-                    ${
-                      prize.isWinning && gameState === "completed"
-                        ? "border-yellow-400 bg-yellow-400/10 shadow-lg shadow-yellow-400/20 scale-105"
-                        : "border-gray-600 bg-gray-800"
+                    ${prize.isWinning && gameState === "completed"
+                      ? "border-yellow-400 bg-yellow-400/10 shadow-lg shadow-yellow-400/20 scale-105"
+                      : "border-gray-600 bg-gray-800"
                     }
                   `}
                 >
                   <div className="absolute inset-0 flex flex-col items-center justify-center p-1 sm:p-2">
                     <img
-                      src={prize.image || "/placeholder.svg"}
+                      src={prize.image}
                       alt={prize.name}
                       className="w-full h-8 sm:h-12 object-contain mb-1 sm:mb-2"
                     />
@@ -269,18 +227,19 @@ export function ScratchOffGame({
               ))}
             </div>
 
-            {gameState !== "initial" && gameState !== "completed" && (
-              <canvas
-                ref={canvasRef}
-                className="absolute inset-0 w-full h-full cursor-crosshair touch-none select-none rounded-xl"
-                style={{ touchAction: "none" }}
-              />
-            )}
-
-            {gameState === "playing" && !isCanvasReady && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80 rounded-xl">
-                <div className="w-8 h-8 border-2 border-gray-600 border-t-white rounded-full animate-spin"></div>
-              </div>
+            {gameState === "playing" && (
+              <>
+                <canvas
+                  ref={canvasRef}
+                  className="absolute inset-0 w-full h-full cursor-crosshair touch-none select-none rounded-xl"
+                  style={{ touchAction: "none" }}
+                />
+                {!isCanvasReady && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80 rounded-xl">
+                    <div className="w-8 h-8 border-2 border-gray-600 border-t-white rounded-full animate-spin"></div>
+                  </div>
+                )}
+              </>
             )}
 
             {gameState === "initial" && (
@@ -315,18 +274,18 @@ export function ScratchOffGame({
 
           {gameState === "completed" && (
             <div className="mt-6 text-center animate-in fade-in slide-in-from-bottom duration-500">
-              {winningPrize ? (
+              {isWinningGame ? (
                 <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 sm:p-6">
                   <h3 className="text-2xl font-bold text-green-300">🎉 Parabéns! Você Ganhou!</h3>
                   <div className="flex items-center justify-center gap-4 my-4">
                     <img
-                      src={winningPrize.image || "/placeholder.svg"}
-                      alt={winningPrize.name}
+                      src={winningPrize?.image}
+                      alt="Prêmio"
                       className="w-16 h-10 object-contain"
                     />
                     <div>
-                      <p className="text-white font-semibold">{winningPrize.name}</p>
-                      <p className="text-green-300 font-bold text-2xl">{winningPrize.value}</p>
+                      <p className="text-white font-semibold">{winningPrize?.name}</p>
+                      <p className="text-green-300 font-bold text-2xl">{winningPrize?.value}</p>
                     </div>
                   </div>
                 </div>
@@ -361,31 +320,6 @@ export function ScratchOffGame({
               </Button>
             )}
           </div>
-                    {gameState === "initial" && (
-            <div className="mb-6 animate-in fade-in slide-in-from-top duration-500">
-              <h3 className="text-white text-lg font-bold mb-4 text-center">CONTEÚDO DESSA RASPADINHA:</h3>
-              <div className="grid grid-cols-4 gap-2 p-4 bg-gray-800/50 rounded-xl border border-gray-600">
-                {prizes.map((prize, index) => (
-                  <div
-                    key={`preview-${index}`}
-                    className="relative aspect-square rounded-lg overflow-hidden border border-gray-600 bg-gray-700/50 p-1"
-                  >
-                    <div className="flex flex-col items-center justify-center h-full">
-                      <img
-                        src={prize.image || "/placeholder.svg"}
-                        alt={prize.name}
-                        className="w-full h-6 sm:h-8 object-contain mb-1"
-                      />
-                      <p className="text-white text-[8px] sm:text-[10px] font-semibold text-center leading-tight">
-                        {prize.name}
-                      </p>
-                      <p className="text-green-400 text-[8px] sm:text-[10px] font-bold">{prize.value}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>

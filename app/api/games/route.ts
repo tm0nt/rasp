@@ -9,14 +9,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   }
 
-  const { action, prizeValue } = await request.json()
+  const { action, prizeValue, transactionId } = await request.json()
 
-  if (!['play', 'win'].includes(action)) {
+  if (!['play', 'win', 'lost'].includes(action)) {
     return NextResponse.json({ error: 'Ação inválida' }, { status: 400 })
   }
 
   try {
-    // Get current balance
     const userResult = await query(
       `SELECT balance FROM users WHERE id = $1`,
       [session.user.id]
@@ -28,8 +27,12 @@ export async function POST(request: Request) {
 
     const currentBalance = parseFloat(userResult.rows[0].balance)
 
+    // WIN
     if (action === 'win') {
-      // Parse Brazilian currency format (R$ 1.234,56 -> 1234.56)
+      if (!transactionId) {
+        return NextResponse.json({ error: 'transactionId é obrigatório para ação win' }, { status: 400 })
+      }
+
       const parsedPrizeValue = parseFloat(
         prizeValue.replace(/[^\d,]/g, '').replace(',', '.')
       )
@@ -38,27 +41,74 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Valor de prêmio inválido' }, { status: 400 })
       }
 
-      // Update balance
+      // Verifica se a transação pertence ao usuário
+      const txCheck = await query(
+        `SELECT id FROM payment_transactions WHERE id = $1 AND user_id = $2`,
+        [transactionId, session.user.id]
+      )
+
+      // Atualiza o saldo
       await query(
         `UPDATE users SET balance = balance + $1 WHERE id = $2`,
         [parsedPrizeValue, session.user.id]
       )
 
-      // Return new balance
+      // Atualiza o metadata com result = win
+      const update = await query(
+        `UPDATE payment_transactions
+         SET metadata = jsonb_set(COALESCE(metadata, '{}'), '{result}', to_jsonb('win'::text), true)
+         WHERE id = $1
+         RETURNING id, metadata`,
+        [transactionId]
+      )
+
+      // Retorna novo saldo
       const newBalanceResult = await query(
         `SELECT balance FROM users WHERE id = $1`,
         [session.user.id]
       )
 
       return NextResponse.json({ 
-        success: true, 
+        success: true,
+        updatedTransactionId: update.rows[0].id,
+        metadata: update.rows[0].metadata,
         newBalance: parseFloat(newBalanceResult.rows[0].balance)
+      })
+    }
+
+    // LOST
+    if (action === 'lost') {
+      if (!transactionId) {
+        return NextResponse.json({ error: 'transactionId é obrigatório para ação lost' }, { status: 400 })
+      }
+
+      const txCheck = await query(
+        `SELECT id FROM payment_transactions WHERE id = $1 AND user_id = $2`,
+        [transactionId, session.user.id]
+      )
+
+      if (txCheck.rowCount === 0) {
+        return NextResponse.json({ error: 'Transação não encontrada ou não pertence ao usuário' }, { status: 404 })
+      }
+
+      const update = await query(
+        `UPDATE payment_transactions
+         SET metadata = jsonb_set(COALESCE(metadata, '{}'), '{result}', to_jsonb('lost'::text), true)
+         WHERE id = $1
+         RETURNING id, metadata`,
+        [transactionId]
+      )
+
+      return NextResponse.json({
+        success: true,
+        updatedTransactionId: update.rows[0].id,
+        metadata: update.rows[0].metadata
       })
     }
 
     return NextResponse.json({ error: 'Ação não reconhecida' }, { status: 400 })
   } catch (error) {
-    console.error('Erro ao processar vitória:', error)
+    console.error('Erro ao processar ação:', error)
     return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 })
   }
 }

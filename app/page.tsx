@@ -45,24 +45,15 @@ function HeroCarousel() {
   )
 }
 
-/**
- * Main application component with comprehensive API integration points
- * Features:
- * - User authentication with toast notifications
- * - Game purchase and play functionality
- * - Balance management
- * - Navigation between different pages
- * - Real-time updates and notifications
- */
-function RaspouGanhouApp() {
+export function RaspouGanhouApp() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalTab, setModalTab] = useState<"login" | "register">("login")
   const [isLoaded, setIsLoaded] = useState(false)
-  const [rtp, setRtp] = useState("")
+  const [rtp, setRtp] = useState<number>(85) // Inicializa com 85 e será sobrescrito pela API
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
-  const [gameData, setGameData] = useState<any | null>(null)
   const [purchaseLoading, setPurchaseLoading] = useState<number | null>(null)
-  const [categories, setCategories] = useState([
+  
+  const categories = [
     {
       id: 1,
       title: "PIX na conta",
@@ -70,25 +61,25 @@ function RaspouGanhouApp() {
       description: "Raspe e receba prêmios em DINHEIRO $$$ até R$2.000 diretamente no seu PIX",
       price: "R$ 0,50",
       image: "/images/money.png",
-      isActive: true,
+      isActive: true
     },
     {
       id: 2,
       title: "Sonho de Consumo 😍",
       subtitle: "PRÊMIOS ATÉ R$ 8000,00",
-      description: "Celular, eletrônicos e componentes, receba prêmios exclusivos de alto valor agregado, o...",
+      description: "Celular, eletrônicos e componentes, receba prêmios exclusivos de alto valor agregado",
       price: "R$ 2,00",
       image: "/images/tech-products.png",
-      isActive: true,
+      isActive: true
     },
     {
       id: 3,
       title: "Me mimei",
       subtitle: "PRÊMIOS ATÉ R$ 800,00",
-      description: "Shopee, shein, presentinhos... Quer se mimar mas tá muito caro? Não se preocupe, é só dar...",
+      description: "Shopee, shein, presentinhos... Quer se mimar mas tá muito caro? Não se preocupe, é só dar sorte aqui!",
       price: "R$ 2,50",
       image: "/images/luxury-items.png",
-      isActive: true,
+      isActive: true
     },
     {
       id: 4,
@@ -97,50 +88,31 @@ function RaspouGanhouApp() {
       description: "Cansado de ficar a pé? Essa sua chance de sair motorizado, prêmios de até R$12.000",
       price: "R$ 5,00",
       image: "/images/vehicles.png",
-      isActive: true,
+      isActive: true
     },
-  ])
+  ]
 
-  // Authentication and navigation state
-  const { isAuthenticated, user, login, logout, addBalance, deductBalance, recordBet } = useAuth()
+  const { isAuthenticated, user, login, logout, addBalance, deductBalance } = useAuth()
   const { currentPage, navigateTo, goBack } = useNavigation()
   const { showToast } = useToast()
 
   useEffect(() => {
-    setIsLoaded(true)
-    loadInitialData()
-  }, [])
-
-  /**
-   * Load initial application data
-   */
-  const loadInitialData = async () => {
-    try {
-      const promotionsResponse = await fetch("/api/promotions/active", {
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-      })
-      const promotionsData = await promotionsResponse.json()
-      const configResponse = await fetch("/api/config/app", {
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-      })
-      const configData = await configResponse.json()
-      setRtp(configData.rtp_value)
-    } catch (error) {
-      console.error("Failed to load initial data:", error)
-      await fetch("/api/errors/log", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          error: error.message,
-          context: "app_initialization",
-          timestamp: new Date().toISOString(),
-          userAgent: navigator.userAgent,
-        }),
-      })
+    const loadConfig = async () => {
+      try {
+        const response = await fetch("/api/config/app")
+        const data = await response.json()
+        const apiRtp = parseFloat(data.data?.rtp_value) || 85.0
+        setRtp(apiRtp)
+        console.log("RTP configurado:", apiRtp)
+      } catch (error) {
+        console.error("Erro ao carregar configurações:", error)
+        setRtp(85.0) // Fallback
+      }
     }
-  }
+
+    setIsLoaded(true)
+    loadConfig()
+  }, [])
 
   const [activeTab, setActiveTab] = useState("destaque")
   const tabs = [
@@ -151,41 +123,25 @@ function RaspouGanhouApp() {
     { id: "cosmeticos", label: "Cosméticos" },
   ]
 
-  // Category filtering logic
-  const categoryMapping = {
-    destaque: categories,
-    pix: categories.filter((cat: any) => cat.id === 1),
-    eletronico: categories.filter((cat: any) => cat.id === 2),
-    cosmeticos: categories.filter((cat: any) => cat.id === 3),
-    veiculo: categories.filter((cat: any) => cat.id === 4),
-  }
+  const filteredCategories = categories.filter(cat => {
+    switch(activeTab) {
+      case "pix": return cat.id === 1
+      case "eletronico": return cat.id === 2
+      case "cosmeticos": return cat.id === 3
+      case "veiculo": return cat.id === 4
+      default: return true
+    }
+  })
 
-  const filteredCategories = categoryMapping[activeTab] || categories
-
-  const tabsStyle = {
-    scrollbarWidth: "none",
-    msOverflowStyle: "none",
-    WebkitScrollbar: { display: "none" },
-  }
-
-  /**
-   * Open authentication modal with specified tab
-   */
   const openModal = (tab: "login" | "register") => {
     setModalTab(tab)
     setIsModalOpen(true)
   }
 
-  /**
-   * Handle authentication success
-   */
   const handleAuthSuccess = async (formData: any, isRegister: boolean) => {
     return await login(formData, isRegister)
   }
 
-  /**
-   * Handle protected action (requires authentication)
-   */
   const handleAuthRequired = () => {
     showToast({
       type: "info",
@@ -196,22 +152,19 @@ function RaspouGanhouApp() {
     openModal("login")
   }
 
-  /**
-   * Handle game purchase and play
-   */
-  const handleBuyAndPlay = async (category: { id: number; price: string; title: string }) => {
+  const handleBuyAndPlay = async (category: typeof categories[0]) => {
     if (!isAuthenticated || !user) {
       handleAuthRequired()
       return
     }
 
-    const price = Number.parseFloat(category.price.replace("R$ ", "").replace(",", "."))
+    const price = parseFloat(category.price.replace("R$", "").trim().replace(",", "."))
 
     if (user.balance < price) {
       showToast({
         type: "warning",
         title: "💰 Saldo insuficiente",
-        message: `Você precisa de R$${price.toFixed(2)} para jogar. Seu saldo atual é R$${user.balance.toFixed(2)}.`,
+        message: `Você precisa de ${category.price} para jogar. Seu saldo atual é R$${user.balance.toFixed(2)}.`,
         duration: 6000,
       })
       navigateTo("deposit")
@@ -221,82 +174,19 @@ function RaspouGanhouApp() {
     setPurchaseLoading(category.id)
 
     try {
-      const response = await fetch("/api/games/purchase", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          categoryId: category.id,
-          amount: price,
-          userId: user.id,
-        }),
-      })
-
-      const result = await response.json()
-      if (!response.ok) {
-        throw new Error(result.error || "Erro na compra")
-      }
-
-      const success = await deductBalance(price, "bet")
-      if (!success) {
-        throw new Error("Falha ao deduzir saldo")
-      }
+      await deductBalance(price, `Game purchase - ${category.title}`)
+      setSelectedCategoryId(category.id)
+      
+      // Usa o RTP global carregado da API
+      navigateTo("scratch-game")
 
       showToast({
         type: "success",
         title: "🎮 Compra realizada!",
-        message: `Você comprou uma raspadinha de "${category.title}" por R$${price.toFixed(2)}. Boa sorte!`,
+        message: `Você comprou uma raspadinha de "${category.title}" por ${category.price}. Boa sorte!`,
         duration: 5000,
       })
 
-      await fetch("/api/analytics/track", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          event: "game_purchased",
-          userId: user.id,
-          properties: {
-            categoryId: category.id,
-            amount: price,
-            categoryTitle: category.title,
-            timestamp: new Date().toISOString(),
-          },
-        }),
-      })
-
-      const gameResponse = await fetch("/api/games/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          purchaseId: result.purchaseId,
-          categoryId: category.id,
-          userId: user.id,
-        }),
-      })
-
-      const gameData = await gameResponse.json()
-      if (!gameResponse.ok) {
-        throw new Error(gameData.error || "Erro ao gerar jogo")
-      }
-
-      // Record bet result
-      await recordBet(
-        category.id,
-        price,
-        gameData.gameData.result.prize_value > 0 ? "win" : "lose",
-        gameData.gameData.result.prize_name,
-        gameData.gameData.result.prize_value,
-      )
-
-      setGameData(gameData.gameData)
-      setSelectedCategoryId(category.id)
-      navigateTo("scratch-game")
     } catch (error) {
       console.error("Purchase failed", error)
       showToast({
@@ -305,28 +195,11 @@ function RaspouGanhouApp() {
         message: "Ocorreu um erro ao processar sua compra. Tente novamente.",
         duration: 6000,
       })
-
-      await fetch("/api/errors/log", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          error: error.message,
-          context: "game_purchase",
-          userId: user.id,
-          categoryId: category.id,
-          amount: price,
-          timestamp: new Date().toISOString(),
-        }),
-      })
     } finally {
       setPurchaseLoading(null)
     }
   }
 
-  /**
-   * Handle navigation with authentication check
-   */
   const handleNavigate = (page: string) => {
     if (!isAuthenticated && page !== "home") {
       handleAuthRequired()
@@ -337,9 +210,7 @@ function RaspouGanhouApp() {
 
   // Render different pages based on current page
   if (currentPage === "wallet" && isAuthenticated && user) {
-    return (
-      <WalletPage onNavigate={handleNavigate} onBack={goBack} user={user} onLogout={logout} onAddBalance={addBalance} />
-    )
+    return <WalletPage onNavigate={handleNavigate} onBack={goBack} user={user} onLogout={logout} />
   }
 
   if (currentPage === "deposit" && isAuthenticated && user) {
@@ -370,75 +241,64 @@ function RaspouGanhouApp() {
     return <CartPage onBack={goBack} user={user} onLogout={logout} onNavigate={handleNavigate} />
   }
 
-  if (currentPage === "scratch-game" && isAuthenticated && user && selectedCategoryId && gameData) {
-    const currentCategory = categories.find((cat: any) => cat.id === selectedCategoryId)
-    const playAgain = () => handleBuyAndPlay(currentCategory)
+  if (currentPage === "scratch-game" && isAuthenticated && user && selectedCategoryId) {
+    const currentCategory = categories.find(cat => cat.id === selectedCategoryId)
+    const playAgain = () => handleBuyAndPlay(currentCategory!)
 
-    // Route to specific game based on category
-    if (selectedCategoryId === 3) {
-      return (
-        <CosmeticsScratchGamePage
-          onBack={goBack}
-          user={user}
-          onLogout={logout}
-          onNavigate={handleNavigate}
-          categoryId={selectedCategoryId}
-          gameData={gameData}
-          rtp={rtp}
-          onPlayAgain={playAgain}
-        />
-      )
-    } else if (selectedCategoryId === 2) {
-      return (
-        <ElectronicsScratchGamePage
-          onBack={goBack}
-          user={user}
-          onLogout={logout}
-          onNavigate={handleNavigate}
-          categoryId={selectedCategoryId}
-          gameData={gameData}
-          rtp={rtp}
-          onPlayAgain={playAgain}
-        />
-      )
-    } else if (selectedCategoryId === 4) {
-      return (
-        <VehiclesScratchGamePage
-          onBack={goBack}
-          user={user}
-          onLogout={logout}
-          onNavigate={handleNavigate}
-          categoryId={selectedCategoryId}
-          gameData={gameData}
-          rtp={rtp}
-          onPlayAgain={playAgain}
-        />
-      )
-    } else {
-      return (
-        <ScratchGamePage
-          onBack={goBack}
-          user={user}
-          onLogout={logout}
-          onNavigate={handleNavigate}
-          categoryId={selectedCategoryId}
-          gameData={gameData}
-          rtp={rtp}
-          onPlayAgain={playAgain}
-        />
-      )
+    switch(selectedCategoryId) {
+      case 1:
+        return (
+          <ScratchGamePage
+            onBack={goBack}
+            user={user}
+            onLogout={logout}
+            onNavigate={handleNavigate}
+            categoryId={selectedCategoryId}
+            rtp={rtp} // Passa o RTP dinâmico
+          />
+        )
+      case 2:
+        return (
+          <ElectronicsScratchGamePage
+            onBack={goBack}
+            user={user}
+            onLogout={logout}
+            onNavigate={handleNavigate}
+            categoryId={selectedCategoryId}
+            rtp={rtp} // Passa o RTP dinâmico
+          />
+        )
+      case 3:
+        return (
+          <CosmeticsScratchGamePage
+            onBack={goBack}
+            user={user}
+            onLogout={logout}
+            onNavigate={handleNavigate}
+            categoryId={selectedCategoryId}
+            rtp={rtp} // Passa o RTP dinâmico
+          />
+        )
+      case 4:
+        return (
+          <VehiclesScratchGamePage
+            onBack={goBack}
+            user={user}
+            onLogout={logout}
+            onNavigate={handleNavigate}
+            categoryId={selectedCategoryId}
+            rtp={rtp} // Passa o RTP dinâmico
+          />
+        )
+      default:
+        return null
     }
   }
 
   // Default home page
   return (
     <div className="min-h-screen bg-black text-white font-sans">
-      {/* Header */}
-      <header
-        className={`bg-black border-b border-gray-800 sticky top-0 z-40 backdrop-blur-md bg-black/95 transition-all duration-500 ${
-          isLoaded ? "animate-in slide-in-from-top duration-700" : ""
-        }`}
-      >
+      <header className="bg-black border-b border-gray-800 sticky top-0 z-40 backdrop-blur-md bg-black/95">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex items-center group">
@@ -451,55 +311,34 @@ function RaspouGanhouApp() {
                 priority
               />
             </div>
-            {!isAuthenticated && (
-              <div className="hidden md:flex items-center gap-2 text-green-400 animate-pulse">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-ping"></div>
-              </div>
-            )}
           </div>
 
-          {/* Dynamic Header Content */}
           {isAuthenticated && user ? (
-            <LoggedInHeader user={user} onLogout={logout} onNavigate={handleNavigate} onAddBalance={addBalance} />
+            <LoggedInHeader user={user} onLogout={logout} onNavigate={handleNavigate} />
           ) : (
             <GuestHeader onOpenModal={openModal} />
           )}
         </div>
       </header>
 
-      {/* Main Content Container */}
       <div className="max-w-6xl mx-auto px-4">
-        {/* Hero Section */}
-        <section
-          className={`relative overflow-hidden py-2 transition-all duration-700 ${
-            isLoaded ? "animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300" : ""
-          }`}
-        >
+        <section className="relative overflow-hidden py-2">
           <HeroCarousel />
         </section>
 
-        {/* Latest Winners Section */}
         <LatestWinners />
 
-        {/* Navigation Tabs */}
-        <nav
-          className={`py-4 transition-all duration-700 ${
-            isLoaded ? "animate-in slide-in-from-left duration-1000 delay-500" : ""
-          }`}
-        >
-          <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory md:overflow-visible" style={tabsStyle}>
-            {tabs.map((tab, index) => (
+        <nav className="py-4">
+          <div className="flex gap-2 overflow-x-auto">
+            {tabs.map(tab => (
               <Button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 whitespace-nowrap text-sm snap-start flex-shrink-0 transition-all duration-300 hover:scale-105 active:scale-95 ${
+                className={`px-4 py-2 whitespace-nowrap text-sm ${
                   activeTab === tab.id
-                    ? "bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/25"
-                    : "bg-transparent text-gray-300 hover:text-white border border-gray-600 hover:border-gray-500 hover:bg-gray-800/50"
+                    ? "bg-green-500 hover:bg-green-600 text-white"
+                    : "bg-transparent text-gray-300 hover:text-white border border-gray-600"
                 }`}
-                style={{
-                  animationDelay: `${600 + index * 100}ms`,
-                }}
               >
                 {tab.label}
               </Button>
@@ -507,42 +346,30 @@ function RaspouGanhouApp() {
           </div>
         </nav>
 
-        {/* Product Cards */}
-        <section
-          className={`pb-20 transition-all duration-700 ${
-            isLoaded ? "animate-in fade-in slide-in-from-bottom duration-1000 delay-700" : ""
-          }`}
-        >
-          <div className="space-y-6 md:grid md:grid-cols-2 lg:grid-cols-4 md:gap-6 md:space-y-0">
-            {filteredCategories.map((category: any, index: number) => (
-              <div
-                key={category.id}
-                className="space-y-3 group animate-in fade-in slide-in-from-bottom duration-500"
-                style={{
-                  animationDelay: `${800 + index * 150}ms`,
-                }}
-              >
-                <div className="relative h-48 rounded-lg overflow-hidden transition-all duration-500 group-hover:shadow-2xl group-hover:shadow-green-500/20 group-hover:scale-[1.02]">
+        <section className="pb-20">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {filteredCategories.map(category => (
+              <div key={category.id} className="space-y-3 group">
+                <div className="relative h-48 rounded-lg overflow-hidden transition-all duration-500 group-hover:shadow-lg group-hover:shadow-green-500/20">
                   <Image
-                    src={category.image || "/placeholder.svg"}
+                    src={category.image}
                     alt={category.title}
                     fill
                     className="object-contain transition-transform duration-700 group-hover:scale-110"
                   />
-                  <Badge className="absolute top-3 right-3 bg-green-500 text-white font-bold text-lg px-3 py-1 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg">
+                  <Badge className="absolute top-3 right-3 bg-green-500 text-white font-bold text-lg px-3 py-1">
                     {category.price}
                   </Badge>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 </div>
 
-                <div className="space-y-2 transition-all duration-300 group-hover:translate-y-[-2px]">
-                  <h3 className="text-xl font-bold text-white transition-colors duration-300 group-hover:text-green-400">
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-white">
                     {category.title}
                   </h3>
-                  <p className="text-orange-400 font-semibold text-sm transition-colors duration-300 group-hover:text-orange-300">
+                  <p className="text-orange-400 font-semibold text-sm">
                     {category.subtitle}
                   </p>
-                  <p className="text-gray-300 text-sm line-clamp-3 transition-colors duration-300 group-hover:text-gray-200">
+                  <p className="text-gray-300 text-sm line-clamp-3">
                     {category.description}
                   </p>
                 </div>
@@ -550,7 +377,7 @@ function RaspouGanhouApp() {
                 <Button
                   onClick={() => handleBuyAndPlay(category)}
                   disabled={purchaseLoading === category.id}
-                  className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/25 hover:scale-[1.02] active:scale-[0.98] group"
+                  className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3"
                 >
                   {purchaseLoading === category.id ? (
                     <>
@@ -560,7 +387,7 @@ function RaspouGanhouApp() {
                   ) : (
                     <>
                       Jogar por {category.price}
-                      <ArrowRight className="w-4 h-4 ml-2 transition-transform duration-300 group-hover:translate-x-1" />
+                      <ArrowRight className="w-4 h-4 ml-2" />
                     </>
                   )}
                 </Button>
@@ -570,10 +397,8 @@ function RaspouGanhouApp() {
         </section>
       </div>
 
-      {/* Mobile Bottom Navigation */}
       <MobileNav isAuthenticated={isAuthenticated} onAuthRequired={handleAuthRequired} onNavigate={handleNavigate} />
 
-      {/* Authentication Modal */}
       <AuthModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -584,9 +409,6 @@ function RaspouGanhouApp() {
   )
 }
 
-/**
- * Main app wrapper with toast provider
- */
 export default function RaspouGanhou() {
   return (
     <ToastProvider>

@@ -4,6 +4,14 @@ import { useState, useEffect } from "react"
 import { PageLayout } from "@/components/layout/page-layout"
 import { ScratchOffGame } from "@/components/game/scratch-off-game"
 
+interface Prize {
+  id: string
+  name: string
+  value: string
+  image: string
+  isWinning?: boolean
+}
+
 interface CosmeticsScratchGamePageProps {
   rtp: string
   onBack: () => void
@@ -31,7 +39,7 @@ export function CosmeticsScratchGamePage({
   const [gameKey, setGameKey] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [balance, setBalance] = useState(user.balance)
-  const [currentWinningPrize, setCurrentWinningPrize] = useState<any>(null)
+  const [revealedPrizes, setRevealedPrizes] = useState<Prize[]>([])
   const [purchaseId, setPurchaseId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -54,85 +62,119 @@ export function CosmeticsScratchGamePage({
     { id: "10", name: "Cabo USB-C", value: "R$ 25,00", image: "/images/cosmetics/usb-cable.webp" },
   ]
 
-  const generateGameResult = () => {
+  const selectWinningPrize = () => {
+    const winningProbabilities = [
+      { prize: cosmeticsPrizes[9], weight: 35 },  // Cabo USB-C
+      { prize: cosmeticsPrizes[8], weight: 25 },  // Máscara Facial
+      { prize: cosmeticsPrizes[7], weight: 15 },  // Voucher SHEIN
+      { prize: cosmeticsPrizes[6], weight: 10 },  // Body Splash Kit
+      { prize: cosmeticsPrizes[5], weight: 6 },   // Bolsa Hobo
+      { prize: cosmeticsPrizes[4], weight: 4 },   // Caixa de Beleza
+      { prize: cosmeticsPrizes[3], weight: 2.5 }, // Escova Alisadora
+      { prize: cosmeticsPrizes[2], weight: 1.5 }, // Kit Maquiagem
+      { prize: cosmeticsPrizes[1], weight: 0.8 }, // Kit Kérastase
+      { prize: cosmeticsPrizes[0], weight: 0.2 }, // Perfume Dior
+    ]
+
+    const totalWeight = winningProbabilities.reduce((sum, item) => sum + item.weight, 0)
+    let random = Math.random() * totalWeight
+    for (const item of winningProbabilities) {
+      random -= item.weight
+      if (random <= 0) return item.prize
+    }
+    return cosmeticsPrizes[9] // Default to lowest prize
+  }
+
+  const getRandomPrize = () => {
+    const randomIndex = Math.floor(Math.random() * cosmeticsPrizes.length)
+    return cosmeticsPrizes[randomIndex]
+  }
+
+  const generateRevealedPrizes = () => {
     const isWinner = Math.random() < parseFloat(rtp) / 100
+    const prizesGrid: Prize[] = []
+
     if (isWinner) {
-      const winningProbabilities = [
-        { prize: cosmeticsPrizes[9], weight: 35 },
-        { prize: cosmeticsPrizes[8], weight: 25 },
-        { prize: cosmeticsPrizes[7], weight: 15 },
-        { prize: cosmeticsPrizes[6], weight: 10 },
-        { prize: cosmeticsPrizes[5], weight: 6 },
-        { prize: cosmeticsPrizes[4], weight: 4 },
-        { prize: cosmeticsPrizes[3], weight: 2.5 },
-        { prize: cosmeticsPrizes[2], weight: 1.5 },
-        { prize: cosmeticsPrizes[1], weight: 0.8 },
-        { prize: cosmeticsPrizes[0], weight: 0.2 },
-      ]
-      const totalWeight = winningProbabilities.reduce((sum, item) => sum + item.weight, 0)
-      let random = Math.random() * totalWeight
-      for (const item of winningProbabilities) {
-        random -= item.weight
-        if (random <= 0) return item.prize
+      const winningPrize = selectWinningPrize()
+      
+      // Add 3 winning prizes
+      for (let i = 0; i < 3; i++) {
+        prizesGrid.push({ ...winningPrize, id: `win-${i}`, isWinning: true })
+      }
+      
+      // Add 6 random non-winning prizes
+      for (let i = 0; i < 6; i++) {
+        let randomPrize
+        do {
+          randomPrize = getRandomPrize()
+        } while (randomPrize.id === winningPrize.id) // Ensure different from winning prize
+        
+        prizesGrid.push({ ...randomPrize, id: `random-${i}` })
+      }
+    } else {
+      // Add 9 random non-winning prizes (all different)
+      const shuffled = [...cosmeticsPrizes].sort(() => 0.5 - Math.random())
+      for (let i = 0; i < 9; i++) {
+        prizesGrid.push({ ...shuffled[i % shuffled.length], id: `random-${i}` })
       }
     }
-    return null
+
+    return prizesGrid.sort(() => Math.random() - 0.5) // Shuffle the array
   }
 
   useEffect(() => {
-    setCurrentWinningPrize(generateGameResult())
+    setRevealedPrizes(generateRevealedPrizes())
   }, [gameKey])
 
-  const handleGameComplete = async (isWinner: boolean, prize?: any) => {
-    if (isWinner && prize && purchaseId) {
-      console.log("Jogador ganhou:", prize)
-      const amount = parseFloat(prize.value.replace("R$","").trim().replace(/\./g, "").replace(",", "."))
-      try {
-        const res = await fetch("/api/games", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "win",
-            prizeValue: prize.value
-          }),
-        })
-        
-        if (res.ok) {
-          const data = await res.json()
-          setBalance(prev => prev + amount)
-          
-          await fetch("/api/games/update", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              betId: purchaseId,
-              result: "won",
-              prizeId: prize.id,
-              prizeAmount: amount
-            }),
-          })
-        } else {
-          console.error("Erro ao registrar prêmio na API")
-        }
-      } catch (err) {
-        console.error("Erro na requisição /api/games", err)
+const handleGameComplete = async (isWinner: boolean, prize?: Prize) => {
+  if (!purchaseId) return
+
+  try {
+    if (isWinner && prize) {
+      const amount = parseFloat(
+        prize.value
+          .replace("R$", "")
+          .trim()
+          .replace(/\./g, "")
+          .replace(",", ".")
+      )
+
+      if (isNaN(amount)) {
+        console.error("Valor do prêmio inválido:", prize.value)
+        return
       }
-    } else if (purchaseId) {
-      try {
-        await fetch("/api/games/update", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            betId: purchaseId,
-            result: "lost"
-          }),
-        })
-      } catch (err) {
-        console.error("Erro ao atualizar aposta como perdida", err)
+
+      const res = await fetch("/api/games", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transactionId: purchaseId,
+          action: "win",
+          prizeValue: prize.value,
+        }),
+      })
+
+      if (!res.ok) {
+        console.error("Erro ao registrar vitória")
       }
-      console.log("Jogador não ganhou desta vez")
+    } else {
+      const res = await fetch("/api/games", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transactionId: purchaseId,
+          action: "lost",
+        }),
+      })
+
+      if (!res.ok) {
+        console.error("Erro ao registrar perda")
+      }
     }
+  } catch (err) {
+    console.error("Erro na requisição para /api/games", err)
   }
+}
 
   const handlePlayAgain = async () => {
     if (balance < 2.5) {
@@ -153,7 +195,7 @@ export function CosmeticsScratchGamePage({
       if (res.ok) {
         const data = await res.json()
         setBalance(prev => prev - 2.5)
-        setPurchaseId(data.purchaseId)
+        setPurchaseId(data.transactionId)
         setGameKey(prev => prev + 1)
       } else {
         const error = await res.json()
@@ -187,7 +229,7 @@ export function CosmeticsScratchGamePage({
             <ScratchOffGame
               key={gameKey}
               prizes={cosmeticsPrizes}
-              winningPrize={currentWinningPrize}
+              revealedPrizes={revealedPrizes}
               onGameComplete={handleGameComplete}
               onPlayAgain={handlePlayAgain}
               gamePrice={2.5}

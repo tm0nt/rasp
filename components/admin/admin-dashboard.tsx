@@ -9,8 +9,9 @@ import { TransactionsTable } from "./transactions-table"
 import { BonusesPage } from "./bonuses-page"
 import { AffiliatesPage } from "./affiliates-page"
 import { GeneralSettings } from "./general-settings"
+import { PasswordSettings } from "./password-settings"
 
-type AdminPage = "dashboard" | "users" | "transactions" | "bonuses" | "affiliates" | "gateway" | "settings"
+type AdminPage = "dashboard" | "users" | "transactions" | "bonuses" | "affiliates" | "gateway" | "settings" | "password"
 
 interface AdminDashboardProps {
   admin: {
@@ -43,6 +44,8 @@ export function AdminDashboard({ admin, onLogout }: AdminDashboardProps) {
         return <AffiliatesPage />
       case "settings":
         return <GeneralSettings />
+        case "password":
+        return <PasswordSettings />
       default:
         return <DashboardOverview />
     }

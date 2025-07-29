@@ -1,6 +1,6 @@
 "use client"
 
-import { LayoutDashboard, Users, CreditCard, Gift, UserCheck, Settings, Banknote, X } from "lucide-react"
+import { LayoutDashboard, Users, CreditCard, Gift, UserCheck, Settings, LockIcon ,Banknote, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 interface AdminSidebarProps {
@@ -21,6 +21,7 @@ export function AdminSidebar({ currentPage, onPageChange, isOpen, onClose }: Adm
     { id: "bonuses", label: "Bônus", icon: Gift },
     { id: "affiliates", label: "Afiliados", icon: UserCheck },
     { id: "settings", label: "Configurações", icon: Settings },
+    { id: "password", label: "Senha", icon: LockIcon },
   ]
 
   return (

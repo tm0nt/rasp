@@ -31,7 +31,7 @@ export async function POST(request: Request) {
       [betId, session.user.id, null, categoryId, amount, 'pending', new Date()] // Added default 'pending' result
     );
 
-    return NextResponse.json({ success: true, purchaseId: betId });
+    return NextResponse.json({ success: true, purchaseId: betId, transactionId });
   } catch (error) {
     console.error('Error purchasing game:', error);
     return NextResponse.json({ error: 'Erro na compra' }, { status: 500 });

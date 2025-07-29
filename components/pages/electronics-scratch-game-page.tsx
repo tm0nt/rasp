@@ -4,6 +4,14 @@ import { useState, useEffect } from "react"
 import { PageLayout } from "@/components/layout/page-layout"
 import { ScratchOffGame } from "@/components/game/scratch-off-game"
 
+interface Prize {
+  id: string
+  name: string
+  value: string
+  image: string
+  isWinning?: boolean
+}
+
 interface ElectronicsScratchGamePageProps {
   rtp: string
   onBack: () => void
@@ -31,7 +39,7 @@ export function ElectronicsScratchGamePage({
   const [gameKey, setGameKey] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [balance, setBalance] = useState(user.balance)
-  const [currentWinningPrize, setCurrentWinningPrize] = useState<any>(null)
+  const [revealedPrizes, setRevealedPrizes] = useState<Prize[]>([])
   const [purchaseId, setPurchaseId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -61,95 +69,126 @@ export function ElectronicsScratchGamePage({
     { id: "17", name: "Cabo USB-C", value: "R$ 25,00", image: "/images/electronics/usb-cable.webp" },
   ]
 
-  const generateGameResult = () => {
+  const selectWinningPrize = () => {
+    const winningProbabilities = [
+      { prize: electronicsPrizes[16], weight: 25 },  // Cabo USB-C
+      { prize: electronicsPrizes[15], weight: 20 },  // Capa Transparente
+      { prize: electronicsPrizes[14], weight: 15 },  // Película
+      { prize: electronicsPrizes[13], weight: 12 },  // Suporte Celular
+      { prize: electronicsPrizes[12], weight: 8 },   // Carregador Apple
+      { prize: electronicsPrizes[11], weight: 6 },   // Fones Sem Fio
+      { prize: electronicsPrizes[10], weight: 4 },   // Caixa JBL
+      { prize: electronicsPrizes[9], weight: 3 },    // Power Bank
+      { prize: electronicsPrizes[8], weight: 2.5 },  // Echo Dot
+      { prize: electronicsPrizes[7], weight: 1.5 },  // Apple Watch
+      { prize: electronicsPrizes[6], weight: 1 },    // Tablet Samsung
+      { prize: electronicsPrizes[5], weight: 0.7 },  // Samsung Galaxy
+      { prize: electronicsPrizes[4], weight: 0.4 },  // iPad
+      { prize: electronicsPrizes[3], weight: 0.2 },  // Geladeira
+      { prize: electronicsPrizes[2], weight: 0.15 }, // Smart TV
+      { prize: electronicsPrizes[1], weight: 0.1 },  // iPhone
+      { prize: electronicsPrizes[0], weight: 0.05 }, // MacBook
+    ]
+
+    const totalWeight = winningProbabilities.reduce((sum, item) => sum + item.weight, 0)
+    let random = Math.random() * totalWeight
+    for (const item of winningProbabilities) {
+      random -= item.weight
+      if (random <= 0) return item.prize
+    }
+    return electronicsPrizes[16] // Default to lowest prize
+  }
+
+  const getRandomPrize = () => {
+    const randomIndex = Math.floor(Math.random() * electronicsPrizes.length)
+    return electronicsPrizes[randomIndex]
+  }
+
+  const generateRevealedPrizes = () => {
     const isWinner = Math.random() < parseFloat(rtp) / 100
+    const prizesGrid: Prize[] = []
+
     if (isWinner) {
-      const winningProbabilities = [
-        { prize: electronicsPrizes[16], weight: 25 },
-        { prize: electronicsPrizes[15], weight: 20 },
-        { prize: electronicsPrizes[14], weight: 15 },
-        { prize: electronicsPrizes[13], weight: 12 },
-        { prize: electronicsPrizes[12], weight: 8 },
-        { prize: electronicsPrizes[11], weight: 6 },
-        { prize: electronicsPrizes[10], weight: 4 },
-        { prize: electronicsPrizes[9], weight: 3 },
-        { prize: electronicsPrizes[8], weight: 2.5 },
-        { prize: electronicsPrizes[7], weight: 1.5 },
-        { prize: electronicsPrizes[6], weight: 1 },
-        { prize: electronicsPrizes[5], weight: 0.7 },
-        { prize: electronicsPrizes[4], weight: 0.4 },
-        { prize: electronicsPrizes[3], weight: 0.2 },
-        { prize: electronicsPrizes[2], weight: 0.15 },
-        { prize: electronicsPrizes[1], weight: 0.1 },
-        { prize: electronicsPrizes[0], weight: 0.05 },
-      ]
-      const totalWeight = winningProbabilities.reduce((sum, item) => sum + item.weight, 0)
-      let random = Math.random() * totalWeight
-      for (const item of winningProbabilities) {
-        random -= item.weight
-        if (random <= 0) return item.prize
+      const winningPrize = selectWinningPrize()
+      
+      // Add 3 winning prizes
+      for (let i = 0; i < 3; i++) {
+        prizesGrid.push({ ...winningPrize, id: `win-${i}`, isWinning: true })
+      }
+      
+      // Add 6 random non-winning prizes
+      for (let i = 0; i < 6; i++) {
+        let randomPrize
+        do {
+          randomPrize = getRandomPrize()
+        } while (randomPrize.id === winningPrize.id) // Ensure different from winning prize
+        
+        prizesGrid.push({ ...randomPrize, id: `random-${i}` })
+      }
+    } else {
+      // Add 9 random non-winning prizes (all different)
+      const shuffled = [...electronicsPrizes].sort(() => 0.5 - Math.random())
+      for (let i = 0; i < 9; i++) {
+        prizesGrid.push({ ...shuffled[i % shuffled.length], id: `random-${i}` })
       }
     }
-    return null
+
+    return prizesGrid.sort(() => Math.random() - 0.5) // Shuffle the array
   }
 
   useEffect(() => {
-    setCurrentWinningPrize(generateGameResult())
+    setRevealedPrizes(generateRevealedPrizes())
   }, [gameKey])
 
-  const handleGameComplete = async (isWinner: boolean, prize?: any) => {
-    if (isWinner && prize && purchaseId) {
-      console.log("Jogador ganhou:", prize)
-      const amount = parseFloat(prize.value.replace("R$", "").replace(/\./g, "").replace(",", "."))
-      try {
-        // Credit prize to user balance
-        const res = await fetch("/api/games", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "win",
-            prizeValue: prize.value
-          }),
-        })
-        
-        if (res.ok) {
-          const data = await res.json()
-          setBalance(prev => prev + amount)
-          
-          // Update the bet result in the database
-          await fetch("/api/games/update", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              betId: purchaseId,
-              result: "won",
-              prizeId: prize.id,
-              prizeAmount: amount
-            }),
-          })
-        } else {
-          console.error("Erro ao registrar prêmio na API")
-        }
-      } catch (err) {
-        console.error("Erro na requisição /api/games", err)
+const handleGameComplete = async (isWinner: boolean, prize?: Prize) => {
+  if (!purchaseId) return
+
+  try {
+    if (isWinner && prize) {
+      const amount = parseFloat(
+        prize.value
+          .replace("R$", "")
+          .trim()
+          .replace(/\./g, "")
+          .replace(",", ".")
+      )
+
+      if (isNaN(amount)) {
+        console.error("Valor do prêmio inválido:", prize.value)
+        return
       }
-    } else if (purchaseId) {
-      // Update the bet result as lost
-      try {
-        await fetch("/api/games/update", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            betId: purchaseId,
-            result: "lost"
-          }),
-        })
-      } catch (err) {
-        console.error("Erro ao atualizar aposta como perdida", err)
+
+      const res = await fetch("/api/games", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transactionId: purchaseId,
+          action: "win",
+          prizeValue: prize.value,
+        }),
+      })
+
+      if (!res.ok) {
+        console.error("Erro ao registrar vitória")
       }
-      console.log("Jogador não ganhou desta vez")
+    } else {
+      const res = await fetch("/api/games", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transactionId: purchaseId,
+          action: "lost",
+        }),
+      })
+
+      if (!res.ok) {
+        console.error("Erro ao registrar perda")
+      }
     }
+  } catch (err) {
+    console.error("Erro na requisição para /api/games", err)
   }
+}
 
   const handlePlayAgain = async () => {
     if (balance < 2.0) {
@@ -170,7 +209,7 @@ export function ElectronicsScratchGamePage({
       if (res.ok) {
         const data = await res.json()
         setBalance(prev => prev - 2.0)
-        setPurchaseId(data.purchaseId)
+        setPurchaseId(data.transactionId)
         setGameKey(prev => prev + 1)
       } else {
         const error = await res.json()
@@ -204,7 +243,7 @@ export function ElectronicsScratchGamePage({
             <ScratchOffGame
               key={gameKey}
               prizes={electronicsPrizes}
-              winningPrize={currentWinningPrize}
+              revealedPrizes={revealedPrizes}
               onGameComplete={handleGameComplete}
               onPlayAgain={handlePlayAgain}
               gamePrice={2.0}

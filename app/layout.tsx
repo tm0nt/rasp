@@ -5,59 +5,60 @@ import { Providers } from "@/components/Providers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { ClientProviders } from "@/components/ClientProviders";
-import Script from 'next/script';
-import { cache } from 'react';
-import { cookies } from 'next/headers';
+import Script from "next/script";
+import { cookies } from "next/headers";
 
 const inter = Inter({ subsets: ["latin"] });
 
-const getAppConfig = cache(() => {
-  const cookieStore = cookies();
-  
+async function getAppConfig() {
+  const cookieStore = await cookies();
+
   const getCookieValue = (name: string) => {
     const value = cookieStore.get(name)?.value;
-    return value ? decodeURIComponent(value) : '';
+    return value ? decodeURIComponent(value) : "";
   };
 
   return {
     data: {
-      site_name: getCookieValue('app_site_name'),
-      site_description: getCookieValue('app_site_description'),
-      seo_meta_keywords: getCookieValue('app_meta_keywords'),
-      site_favicon: getCookieValue('app_site_favicon'),
-      site_url: getCookieValue('app_site_url'),
-      seo_google_analytics: getCookieValue('app_ga_id'),
-      seo_facebook_pixel: getCookieValue('app_fb_pixel') || '', // Assuming cookie name; adjust if different
-      support_email: getCookieValue('app_support_email'),
-      support_phone: getCookieValue('app_support_phone'),
-      welcome_bonus: getCookieValue('app_welcome_bonus') || '', // Assuming cookie name; adjust if different
-      referral_bonus: getCookieValue('app_referral_bonus') || '', // Assuming cookie name; adjust if different
-      min_withdrawal: getCookieValue('app_min_withdrawal') || '', // Assuming cookie name; adjust if different
-      maintenance_mode: getCookieValue('app_maintenance_mode') || 'false', // Assuming cookie name; adjust if different
-      rtp_value: getCookieValue('app_rtp_value') || '', // Assuming cookie name; adjust if different
-    }
+      site_name: getCookieValue("app_site_name"),
+      site_description: getCookieValue("app_site_description"),
+      seo_meta_keywords: getCookieValue("app_meta_keywords"),
+      site_favicon: getCookieValue("app_site_favicon"),
+      site_url: getCookieValue("app_site_url"),
+      seo_google_analytics: getCookieValue("app_ga_id"),
+      seo_facebook_pixel: getCookieValue("app_fb_pixel") || "",
+      support_email: getCookieValue("app_support_email"),
+      support_phone: getCookieValue("app_support_phone"),
+      welcome_bonus: getCookieValue("app_welcome_bonus") || "",
+      referral_bonus: getCookieValue("app_referral_bonus") || "",
+      min_withdrawal: getCookieValue("app_min_withdrawal") || "",
+      maintenance_mode: getCookieValue("app_maintenance_mode") || "false",
+      rtp_value: getCookieValue("app_rtp_value") || "",
+    },
   };
-});
+}
 
 export async function generateMetadata(): Promise<Metadata> {
-  const appConfig = getAppConfig();
+  const appConfig = await getAppConfig();
   const configData = appConfig?.data || {};
 
   return {
     title: configData.site_name || "Raspou Ganhou - Raspadinhas Online",
-    description: configData.site_description || "Jogue raspadinhas online e ganhe prêmios incríveis!",
+    description:
+      configData.site_description ||
+      "Jogue raspadinhas online e ganhe prêmios incríveis!",
     keywords: configData.seo_meta_keywords || "raspadinha, jogos online, prêmios, PIX",
-  }
+  };
 }
 
 export default async function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   const [session, appConfig] = await Promise.all([
     getServerSession(authOptions),
-    Promise.resolve(getAppConfig())
+    getAppConfig(),
   ]);
 
   const configData = appConfig?.data || {};
@@ -73,7 +74,7 @@ export default async function RootLayout({
     welcomeBonus: configData.welcome_bonus,
     referralBonus: configData.referral_bonus,
     minWithdrawal: configData.min_withdrawal,
-    rtpValue: configData.rtp_value
+    rtpValue: configData.rtp_value,
   };
 
   return (
@@ -122,9 +123,7 @@ export default async function RootLayout({
       </head>
       <body className={inter.className}>
         <Providers session={session}>
-          <ClientProviders appConfig={appConfigData}>
-            {children}
-          </ClientProviders>
+          <ClientProviders appConfig={appConfigData}>{children}</ClientProviders>
         </Providers>
 
         {/* Facebook Pixel noscript fallback */}
@@ -133,7 +132,7 @@ export default async function RootLayout({
             <img
               height="1"
               width="1"
-              style={{ display: 'none' }}
+              style={{ display: "none" }}
               src={`https://www.facebook.com/tr?id=${appConfigData.seo_facebook_pixel}&ev=PageView&noscript=1`}
               alt=""
             />
