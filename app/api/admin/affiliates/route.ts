@@ -69,7 +69,7 @@ export async function GET(request: Request) {
       SELECT 
         COUNT(DISTINCT u.id) as total_affiliates,
         COUNT(r.id) as total_referrals,
-        COALESCE(SUM(CASE WHEN r.status = 'paid' THEN r.bonus_amount ELSE 0 END), 0) as total_earned,
+        COALESCE(SUM(CASE WHEN r.status = 'completed' THEN r.bonus_amount ELSE 0 END), 0) as total_earned,
         COALESCE(SUM(CASE WHEN r.status = 'pending' THEN r.bonus_amount ELSE 0 END), 0) as total_pending,
         COALESCE(SUM(CASE WHEN d.type = 'deposit' AND d.status = 'completed' THEN d.amount ELSE 0 END), 0) as total_deposits
       FROM users u
