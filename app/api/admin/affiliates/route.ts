@@ -38,47 +38,59 @@ export async function GET(request: Request) {
   const limit = parseInt(searchParams.get('limit') || '10')
 
   try {
-    // Obter afiliados
+    // Obter afiliados (usuários que têm referências)
     const affiliatesQuery = `
       SELECT 
         u.id,
         u.name,
         u.email,
-        COUNT(r.id) as referrals,
-        COALESCE(SUM(CASE WHEN r.status = 'completed' THEN r.bonus_amount ELSE 0 END), 0) as total_paid,
-        COALESCE(SUM(CASE WHEN r.status = 'pending' THEN r.bonus_amount ELSE 0 END), 0) as pending_earned,
-        COALESCE(SUM(CASE 
-          WHEN t.type = 'deposit' AND t.payment_method = 'pix' AND t.status = 'completed' 
-          THEN t.amount ELSE 0 END), 0) as total_pix_deposit,
+        (
+          SELECT COUNT(DISTINCT r.id)
+          FROM users r
+          JOIN payment_transactions pt ON pt.user_id = r.id
+          WHERE r.referred_by = u.id
+            AND pt.type = 'deposit'
+            AND pt.status = 'completed'
+        ) AS referrals,
+        COALESCE(SUM(CASE WHEN rb.status = 'paid' THEN rb.bonus_amount ELSE 0 END), 0) as total_earned,
+        COALESCE(SUM(CASE WHEN rb.status = 'pending' THEN rb.bonus_amount ELSE 0 END), 0) as pending_earned,
         u.created_at as join_date,
         CASE 
           WHEN u.is_active = false THEN 'Inativo'
           ELSE 'Ativo'
         END as status
       FROM users u
-      LEFT JOIN referral_bonuses r ON u.id = r.referrer_id
-      LEFT JOIN payment_transactions t ON r.referred_id = t.user_id
+      LEFT JOIN referral_bonuses rb ON u.id = rb.referrer_id
       WHERE EXISTS (SELECT 1 FROM referral_bonuses WHERE referrer_id = u.id)
       GROUP BY u.id
       ORDER BY u.created_at DESC
       LIMIT $1 OFFSET $2
     `
+
     const affiliatesResult = await query(affiliatesQuery, [limit, (page - 1) * limit])
 
     // Obter estatísticas totais
     const statsQuery = `
       SELECT 
         COUNT(DISTINCT u.id) as total_affiliates,
-        COUNT(r.id) as total_referrals,
-        COALESCE(SUM(CASE WHEN r.status = 'completed' THEN r.bonus_amount ELSE 0 END), 0) as total_earned,
-        COALESCE(SUM(CASE WHEN r.status = 'pending' THEN r.bonus_amount ELSE 0 END), 0) as total_pending
+        (
+          SELECT COUNT(DISTINCT r.id)
+          FROM users r
+          JOIN payment_transactions pt ON pt.user_id = r.id
+          WHERE r.referred_by IS NOT NULL
+            AND pt.type = 'deposit'
+            AND pt.status = 'completed'
+        ) as total_referrals,
+        COALESCE(SUM(CASE WHEN rb.status = 'paid' THEN rb.bonus_amount ELSE 0 END), 0) as total_earned,
+        COALESCE(SUM(CASE WHEN rb.status = 'pending' THEN rb.bonus_amount ELSE 0 END), 0) as total_pending
       FROM users u
-      LEFT JOIN referral_bonuses r ON u.id = r.referrer_id
+      LEFT JOIN referral_bonuses rb ON u.id = rb.referrer_id
       WHERE EXISTS (SELECT 1 FROM referral_bonuses WHERE referrer_id = u.id)
     `
+
     const statsResult = await query(statsQuery)
 
-    // Obter configurações do sistema
+    // Obter configurações do programa de afiliados
     const settingsQuery = `
       SELECT key, value 
       FROM system_settings 
@@ -86,20 +98,18 @@ export async function GET(request: Request) {
     `
     const settingsResult = await query(settingsQuery)
 
-    // Mapear afiliados
+    // Formatar os resultados
     const affiliates: Affiliate[] = affiliatesResult.rows.map(row => ({
       id: row.id,
       name: row.name,
       email: row.email,
       referrals: parseInt(row.referrals),
-      totalEarned: parseFloat(row.total_paid),
+      totalEarned: parseFloat(row.total_earned),
       pendingEarned: parseFloat(row.pending_earned),
-      totalPixDeposit: parseFloat(row.total_pix_deposit),
       joinDate: new Date(row.join_date).toISOString().split('T')[0],
       status: row.status
     }))
 
-    // Mapear estatísticas
     const stats: AffiliateStats = {
       totalAffiliates: parseInt(statsResult.rows[0].total_affiliates),
       totalReferrals: parseInt(statsResult.rows[0].total_referrals),
@@ -107,7 +117,6 @@ export async function GET(request: Request) {
       totalPending: parseFloat(statsResult.rows[0].total_pending)
     }
 
-    // Mapear configurações
     const settings: AffiliateSettings = {
       minDeposit: settingsResult.rows.find(s => s.key === 'affiliate_min_deposit')?.value || '20.00',
       cpaValue: settingsResult.rows.find(s => s.key === 'affiliate_cpa_value')?.value || '5.00'
@@ -121,6 +130,7 @@ export async function GET(request: Request) {
         settings
       }
     })
+
   } catch (error) {
     console.error('Error fetching affiliates:', error)
     return NextResponse.json(
