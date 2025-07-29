@@ -53,7 +53,6 @@ export function AffiliatesPage() {
     cpaValue: "5.00"
   })
 
-  // Carregar dados ao montar o componente
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -61,8 +60,17 @@ export function AffiliatesPage() {
         const data = await response.json()
         
         if (data.success) {
-          setAffiliates(data.data.affiliates)
-          setStats(data.data.stats)
+          setAffiliates(data.data.affiliates.map((a: any) => ({
+            ...a,
+            totalDeposits: Number(a.totalPixDeposit ?? 0)
+          })))
+          setStats({
+            totalAffiliates: data.data.stats.totalAffiliates,
+            totalReferrals: data.data.stats.totalReferrals,
+            totalEarned: data.data.stats.totalEarned,
+            totalPending: data.data.stats.totalPending,
+            totalDeposits: data.data.stats.totalDeposits ?? 0
+          })
           setAffiliateSettings(data.data.settings)
         } else {
           toast({
@@ -91,9 +99,7 @@ export function AffiliatesPage() {
     try {
       const response = await fetch('/api/admin/affiliates', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'update_settings',
           data: affiliateSettings
@@ -131,9 +137,7 @@ export function AffiliatesPage() {
     try {
       const response = await fetch('/api/admin/affiliates', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'pay_affiliate',
           data: { affiliateId }
@@ -151,8 +155,17 @@ export function AffiliatesPage() {
         const refreshResponse = await fetch('/api/admin/affiliates')
         const refreshData = await refreshResponse.json()
         if (refreshData.success) {
-          setAffiliates(refreshData.data.affiliates)
-          setStats(refreshData.data.stats)
+          setAffiliates(refreshData.data.affiliates.map((a: any) => ({
+            ...a,
+            totalDeposits: Number(a.totalPixDeposit ?? 0)
+          })))
+          setStats({
+            totalAffiliates: refreshData.data.stats.totalAffiliates,
+            totalReferrals: refreshData.data.stats.totalReferrals,
+            totalEarned: refreshData.data.stats.totalEarned,
+            totalPending: refreshData.data.stats.totalPending,
+            totalDeposits: refreshData.data.stats.totalDeposits ?? 0
+          })
         }
       } else {
         toast({
@@ -192,7 +205,6 @@ export function AffiliatesPage() {
         </Button>
       </div>
 
-      {/* Configurações dos Afiliados */}
       {showSettings && (
         <Card className="bg-gray-800 border-gray-700">
           <CardHeader>
@@ -222,13 +234,14 @@ export function AffiliatesPage() {
               </div>
             </div>
             <div className="flex gap-4 mt-6">
-              <Button onClick={handleUpdateSettings} className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={handleUpdateSettings} className="bg-blue-600 hover:bg-blue-700" disabled={isSaving}>
                 Salvar Configurações
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setShowSettings(false)}
                 className="border-gray-600 text-gray-300"
+                disabled={isSaving}
               >
                 Cancelar
               </Button>
@@ -237,76 +250,64 @@ export function AffiliatesPage() {
         </Card>
       )}
 
-      {/* Estatísticas Gerais */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <UserCheck className="w-8 h-8 text-blue-400" />
-              <div>
-                <p className="text-gray-400 text-sm">Total Afiliados</p>
-                <p className="text-2xl font-bold text-white">{stats?.totalAffiliates}</p>
-              </div>
+          <CardContent className="p-6 flex items-center gap-3">
+            <UserCheck className="w-8 h-8 text-blue-400" />
+            <div>
+              <p className="text-gray-400 text-sm">Total Afiliados</p>
+              <p className="text-2xl font-bold text-white">{stats.totalAffiliates}</p>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <Users className="w-8 h-8 text-green-400" />
-              <div>
-                <p className="text-gray-400 text-sm">Total Indicações</p>
-                <p className="text-2xl font-bold text-white">{stats?.totalReferrals}</p>
-              </div>
+          <CardContent className="p-6 flex items-center gap-3">
+            <Users className="w-8 h-8 text-green-400" />
+            <div>
+              <p className="text-gray-400 text-sm">Total Indicações</p>
+              <p className="text-2xl font-bold text-white">{stats.totalReferrals}</p>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <DollarSign className="w-8 h-8 text-green-400" />
-              <div>
-                <p className="text-gray-400 text-sm">Total Pago</p>
-                <p className="text-2xl font-bold text-white">
-                  R$ {stats.totalEarned.toFixed(2).replace(".", ",")}
-                </p>
-              </div>
+          <CardContent className="p-6 flex items-center gap-3">
+            <DollarSign className="w-8 h-8 text-green-400" />
+            <div>
+              <p className="text-gray-400 text-sm">Total Pago</p>
+              <p className="text-2xl font-bold text-white">
+                R$ {stats.totalEarned.toFixed(2).replace(".", ",")}
+              </p>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <TrendingUp className="w-8 h-8 text-yellow-400" />
-              <div>
-                <p className="text-gray-400 text-sm">Pendente</p>
-                <p className="text-2xl font-bold text-white">
-                  R$ {stats.totalPending.toFixed(2).replace(".", ",")}
-                </p>
-              </div>
+          <CardContent className="p-6 flex items-center gap-3">
+            <TrendingUp className="w-8 h-8 text-yellow-400" />
+            <div>
+              <p className="text-gray-400 text-sm">Pendente</p>
+              <p className="text-2xl font-bold text-white">
+                R$ {stats.totalPending.toFixed(2).replace(".", ",")}
+              </p>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <Wallet className="w-8 h-8 text-purple-400" />
-              <div>
-                <p className="text-gray-400 text-sm">Total Depósitos</p>
-                <p className="text-2xl font-bold text-white">
-                  R$ {stats.totalDeposits.toFixed(2).replace(".", ",")}
-                </p>
-              </div>
+          <CardContent className="p-6 flex items-center gap-3">
+            <Wallet className="w-8 h-8 text-purple-400" />
+            <div>
+              <p className="text-gray-400 text-sm">Total Depósitos</p>
+              <p className="text-2xl font-bold text-white">
+                R$ {stats.totalDeposits.toFixed(2).replace(".", ",")}
+              </p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tabela de Afiliados */}
       <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
           <CardTitle className="text-white">Afiliados com Indicações</CardTitle>
