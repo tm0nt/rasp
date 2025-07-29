@@ -33,7 +33,6 @@ interface AffiliateSettings {
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions)
 
-
   const { searchParams } = new URL(request.url)
   const page = parseInt(searchParams.get('page') || '1')
   const limit = parseInt(searchParams.get('limit') || '10')
@@ -48,6 +47,7 @@ export async function GET(request: Request) {
         COUNT(r.id) as referrals,
         COALESCE(SUM(CASE WHEN r.status = 'paid' THEN r.bonus_amount ELSE 0 END), 0) as total_earned,
         COALESCE(SUM(CASE WHEN r.status = 'pending' THEN r.bonus_amount ELSE 0 END), 0) as pending_earned,
+        COALESCE(SUM(CASE WHEN d.type = 'deposit' AND d.status = 'completed' THEN d.amount ELSE 0 END), 0) as total_deposits,
         u.created_at as join_date,
         CASE 
           WHEN u.is_active = false THEN 'Inativo'
@@ -55,6 +55,7 @@ export async function GET(request: Request) {
         END as status
       FROM users u
       LEFT JOIN referral_bonuses r ON u.id = r.referrer_id
+      LEFT JOIN transactions d ON r.referred_id = d.user_id
       WHERE EXISTS (SELECT 1 FROM referral_bonuses WHERE referrer_id = u.id)
       GROUP BY u.id
       ORDER BY u.created_at DESC
@@ -69,9 +70,11 @@ export async function GET(request: Request) {
         COUNT(DISTINCT u.id) as total_affiliates,
         COUNT(r.id) as total_referrals,
         COALESCE(SUM(CASE WHEN r.status = 'paid' THEN r.bonus_amount ELSE 0 END), 0) as total_earned,
-        COALESCE(SUM(CASE WHEN r.status = 'pending' THEN r.bonus_amount ELSE 0 END), 0) as total_pending
+        COALESCE(SUM(CASE WHEN r.status = 'pending' THEN r.bonus_amount ELSE 0 END), 0) as total_pending,
+        COALESCE(SUM(CASE WHEN d.type = 'deposit' AND d.status = 'completed' THEN d.amount ELSE 0 END), 0) as total_deposits
       FROM users u
       LEFT JOIN referral_bonuses r ON u.id = r.referrer_id
+      LEFT JOIN transactions d ON r.referred_id = d.user_id
       WHERE EXISTS (SELECT 1 FROM referral_bonuses WHERE referrer_id = u.id)
     `
 
@@ -93,6 +96,7 @@ export async function GET(request: Request) {
       referrals: parseInt(row.referrals),
       totalEarned: parseFloat(row.total_earned),
       pendingEarned: parseFloat(row.pending_earned),
+      totalDeposits: parseFloat(row.total_deposits),
       joinDate: new Date(row.join_date).toISOString().split('T')[0],
       status: row.status
     }))
@@ -101,7 +105,8 @@ export async function GET(request: Request) {
       totalAffiliates: parseInt(statsResult.rows[0].total_affiliates),
       totalReferrals: parseInt(statsResult.rows[0].total_referrals),
       totalEarned: parseFloat(statsResult.rows[0].total_earned),
-      totalPending: parseFloat(statsResult.rows[0].total_pending)
+      totalPending: parseFloat(statsResult.rows[0].total_pending),
+      totalDeposits: parseFloat(statsResult.rows[0].total_deposits)
     }
 
     const settings: AffiliateSettings = {

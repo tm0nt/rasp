@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { UserCheck, DollarSign, TrendingUp, Calendar, Users, Settings } from "lucide-react"
+import { UserCheck, DollarSign, TrendingUp, Calendar, Users, Settings, Wallet } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 
 interface Affiliate {
@@ -15,6 +15,7 @@ interface Affiliate {
   referrals: number
   totalEarned: number
   pendingEarned: number
+  totalDeposits: number
   joinDate: string
   status: string
 }
@@ -24,6 +25,7 @@ interface AffiliateStats {
   totalReferrals: number
   totalEarned: number
   totalPending: number
+  totalDeposits: number
 }
 
 interface AffiliateSettings {
@@ -42,7 +44,8 @@ export function AffiliatesPage() {
     totalAffiliates: 0,
     totalReferrals: 0,
     totalEarned: 0,
-    totalPending: 0
+    totalPending: 0,
+    totalDeposits: 0
   })
   
   const [affiliateSettings, setAffiliateSettings] = useState<AffiliateSettings>({
@@ -235,7 +238,7 @@ export function AffiliatesPage() {
       )}
 
       {/* Estatísticas Gerais */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <Card className="bg-gray-800 border-gray-700">
           <CardContent className="p-6">
             <div className="flex items-center gap-3">
@@ -287,6 +290,20 @@ export function AffiliatesPage() {
             </div>
           </CardContent>
         </Card>
+
+        <Card className="bg-gray-800 border-gray-700">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <Wallet className="w-8 h-8 text-purple-400" />
+              <div>
+                <p className="text-gray-400 text-sm">Total Depósitos</p>
+                <p className="text-2xl font-bold text-white">
+                  R$ {stats.totalDeposits.toFixed(2).replace(".", ",")}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Tabela de Afiliados */}
@@ -303,6 +320,7 @@ export function AffiliatesPage() {
                   <th className="text-left py-3 px-4 text-gray-300 font-medium">Indicações</th>
                   <th className="text-left py-3 px-4 text-gray-300 font-medium">Total Ganho</th>
                   <th className="text-left py-3 px-4 text-gray-300 font-medium">Pendente</th>
+                  <th className="text-left py-3 px-4 text-gray-300 font-medium">Total Depósitos</th>
                   <th className="text-left py-3 px-4 text-gray-300 font-medium">Data Ingresso</th>
                   <th className="text-left py-3 px-4 text-gray-300 font-medium">Status</th>
                   <th className="text-left py-3 px-4 text-gray-300 font-medium">Ações</th>
@@ -336,6 +354,14 @@ export function AffiliatesPage() {
                         <TrendingUp className="w-4 h-4 text-yellow-400" />
                         <span className="text-yellow-400 font-medium">
                           R$ {affiliate.pendingEarned.toFixed(2).replace(".", ",")}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex items-center gap-2">
+                        <Wallet className="w-4 h-4 text-purple-400" />
+                        <span className="text-purple-400 font-medium">
+                          R$ {affiliate.totalDeposits.toFixed(2).replace(".", ",")}
                         </span>
                       </div>
                     </td>
