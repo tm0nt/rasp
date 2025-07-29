@@ -40,13 +40,16 @@ export async function GET(request: Request) {
     )
 
     // Total volume de afiliados
-    const totalVolumeResult = await query(
-      `SELECT COALESCE(SUM(pt.amount), 0) AS total
-       FROM users u
-       JOIN payment_transactions pt ON u.id = pt.user_id
-       WHERE u.referred_by = $1 AND pt.status = 'completed'`,
-      [session.user.id]
-    )
+const totalVolumeResult = await query(
+  `SELECT COALESCE(SUM(pt.amount), 0) AS total
+   FROM users u
+   JOIN payment_transactions pt ON u.id = pt.user_id
+   WHERE u.referred_by = $1
+     AND pt.status = 'completed'
+     AND pt.type = 'deposit'`,
+  [session.user.id]
+)
+
 
     // Pending referral bonuses
     const pendingBonuses = await query(
