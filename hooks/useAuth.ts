@@ -306,62 +306,64 @@ export function useAuth() {
   /**
    * Deduct balance from user account
    */
-  const deductBalance = async (amount: number, reason: "bet" | "withdrawal" = "bet") => {
-    if (!user || user.balance < amount) {
-      return false;
-    }
-
-    try {
-      const response = await fetch('/api/user/deduct-balance', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          amount,
-          reason,
-          userId: user.id
-        })
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || 'Erro ao deduzir saldo');
-      }
-
-      setUser(prev => prev ? { ...prev, balance: prev.balance - amount } : null);
-
-      // Track balance deduction
-      await fetch('/api/analytics/track', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event: `${reason}_deducted`,
-          userId: user.id,
-          properties: {
-            amount,
-            reason,
-            timestamp: new Date().toISOString(),
-          },
-        }),
-      });
-
-      return true;
-    } catch (error) {
-      console.error("Deduct balance error:", error);
-      await fetch('/api/errors/log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          error: error.message,
-          context: 'deduct_balance',
-          timestamp: new Date().toISOString(),
-          userAgent: navigator.userAgent
-        })
-      });
-      return false;
-    }
+const purchaseGame = async (amount: number, categoryId: string) => {
+  if (!user || user.balance < amount) {
+    return false;
   }
+
+  try {
+    const response = await fetch('/api/games/purchase', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        amount,
+        categoryId,
+      }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || 'Erro na compra do jogo');
+    }
+
+    // Atualiza saldo local
+    setUser(prev => prev ? { ...prev, balance: prev.balance - amount } : null);
+
+    // Track da compra para analytics
+    await fetch('/api/analytics/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event: 'game_purchased',
+        userId: user.id,
+        properties: {
+          amount,
+          categoryId,
+          timestamp: new Date().toISOString(),
+        },
+      }),
+    });
+
+    return true;
+  } catch (error) {
+    console.error("Erro ao comprar jogo:", error);
+    await fetch('/api/errors/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        error: (error as Error).message,
+        context: 'purchase_game',
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent
+      }),
+    });
+    return false;
+  }
+};
+
 
   /**
    * Record a bet result
@@ -584,7 +586,7 @@ export function useAuth() {
     login,
     logout,
     addBalance,
-    deductBalance,
+    purchaseGame,
     recordBet,
     getBetHistory,
     updateProfile,

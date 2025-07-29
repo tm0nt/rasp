@@ -52,7 +52,8 @@ export function RaspouGanhouApp() {
   const [rtp, setRtp] = useState<number>(85) // Inicializa com 85 e será sobrescrito pela API
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [purchaseLoading, setPurchaseLoading] = useState<number | null>(null)
-  
+  const [isPlaying, setIsPlaying] = useState(false) // Estado para indicar que o jogador está no modo "play"
+
   const categories = [
     {
       id: 1,
@@ -92,9 +93,14 @@ export function RaspouGanhouApp() {
     },
   ]
 
-  const { isAuthenticated, user, login, logout, addBalance, deductBalance } = useAuth()
+  const { isAuthenticated, user, login, logout, addBalance, purchaseGame } = useAuth()
   const { currentPage, navigateTo, goBack } = useNavigation()
   const { showToast } = useToast()
+
+  // ALTERAÇÃO: Callback para resetar isPlaying
+  const resetPlaying = () => {
+    setIsPlaying(false)
+  }
 
   useEffect(() => {
     const loadConfig = async () => {
@@ -174,10 +180,10 @@ export function RaspouGanhouApp() {
     setPurchaseLoading(category.id)
 
     try {
-      await deductBalance(price, `Game purchase - ${category.title}`)
+      await purchaseGame(price, `${category.id}`)
       setSelectedCategoryId(category.id)
+      setIsPlaying(true) // Define isPlaying como true para indicar modo play
       
-      // Usa o RTP global carregado da API
       navigateTo("scratch-game")
 
       showToast({
@@ -254,7 +260,9 @@ export function RaspouGanhouApp() {
             onLogout={logout}
             onNavigate={handleNavigate}
             categoryId={selectedCategoryId}
-            rtp={rtp} // Passa o RTP dinâmico
+            rtp={rtp}
+            isPlaying={isPlaying}
+            resetPlaying={resetPlaying} // ALTERAÇÃO: Passa resetPlaying
           />
         )
       case 2:
@@ -265,7 +273,9 @@ export function RaspouGanhouApp() {
             onLogout={logout}
             onNavigate={handleNavigate}
             categoryId={selectedCategoryId}
-            rtp={rtp} // Passa o RTP dinâmico
+            rtp={rtp}
+            isPlaying={isPlaying}
+            resetPlaying={resetPlaying} // ALTERAÇÃO: Passa resetPlaying
           />
         )
       case 3:
@@ -276,7 +286,9 @@ export function RaspouGanhouApp() {
             onLogout={logout}
             onNavigate={handleNavigate}
             categoryId={selectedCategoryId}
-            rtp={rtp} // Passa o RTP dinâmico
+            rtp={rtp}
+            isPlaying={isPlaying}
+            resetPlaying={resetPlaying} // ALTERAÇÃO: Passa resetPlaying
           />
         )
       case 4:
@@ -287,7 +299,9 @@ export function RaspouGanhouApp() {
             onLogout={logout}
             onNavigate={handleNavigate}
             categoryId={selectedCategoryId}
-            rtp={rtp} // Passa o RTP dinâmico
+            rtp={rtp}
+            isPlaying={isPlaying}
+            resetPlaying={resetPlaying} // ALTERAÇÃO: Passa resetPlaying
           />
         )
       default:

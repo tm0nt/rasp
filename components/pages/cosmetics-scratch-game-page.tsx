@@ -13,7 +13,7 @@ interface Prize {
 }
 
 interface CosmeticsScratchGamePageProps {
-  rtp: string
+  rtp: string // Note: Consider changing to number to match ScratchGamePage
   onBack: () => void
   user: {
     id: string
@@ -26,6 +26,8 @@ interface CosmeticsScratchGamePageProps {
   onLogout: () => void
   onNavigate: (page: string) => void
   categoryId: number
+  isPlaying: boolean // ALTERAÇÃO: Adiciona isPlaying
+  resetPlaying: () => void // ALTERAÇÃO: Adiciona resetPlaying
 }
 
 export function CosmeticsScratchGamePage({
@@ -35,6 +37,8 @@ export function CosmeticsScratchGamePage({
   onLogout,
   onNavigate,
   categoryId,
+  isPlaying,
+  resetPlaying,
 }: CosmeticsScratchGamePageProps) {
   const [gameKey, setGameKey] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
@@ -42,12 +46,52 @@ export function CosmeticsScratchGamePage({
   const [revealedPrizes, setRevealedPrizes] = useState<Prize[]>([])
   const [purchaseId, setPurchaseId] = useState<string | null>(null)
 
+  // ALTERAÇÃO: Função para buscar purchaseId após a compra inicial
+  const fetchPurchaseId = async () => {
+    if (!isPlaying || purchaseId) return // Evita chamadas redundantes
+
+    try {
+      setIsLoading(true)
+      const res = await fetch("/api/games/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          categoryId,
+          amount: 2.5,
+        }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setPurchaseId(data.transactionId)
+        setBalance(prev => prev - 2.5)
+        console.log("fetchPurchaseId, purchaseId:", data.transactionId) // Debug
+      } else {
+        const error = await res.json()
+        console.error("Erro ao obter purchaseId:", error.error)
+        if (error.error === 'Saldo insuficiente') {
+          onNavigate("deposit")
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao conectar com /api/games/purchase", err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // ALTERAÇÃO: Chama fetchPurchaseId quando isPlaying for true
   useEffect(() => {
+    if (isPlaying) {
+      fetchPurchaseId()
+      setRevealedPrizes(generateRevealedPrizes())
+    }
+
     const timer = setTimeout(() => {
       setIsLoading(false)
     }, 800)
     return () => clearTimeout(timer)
-  }, [])
+  }, [isPlaying, gameKey])
 
   const cosmeticsPrizes = [
     { id: "1", name: "Perfume Dior", value: "R$ 800,00", image: "/images/cosmetics/dior-perfume.webp" },
@@ -122,59 +166,55 @@ export function CosmeticsScratchGamePage({
     return prizesGrid.sort(() => Math.random() - 0.5) // Shuffle the array
   }
 
-  useEffect(() => {
-    setRevealedPrizes(generateRevealedPrizes())
-  }, [gameKey])
+  const handleGameComplete = async (isWinner: boolean, prize?: Prize) => {
+    if (!purchaseId || !isPlaying) return // ALTERAÇÃO: Verifica isPlaying
 
-const handleGameComplete = async (isWinner: boolean, prize?: Prize) => {
-  if (!purchaseId) return
+    try {
+      if (isWinner && prize) {
+        const amount = parseFloat(
+          prize.value
+            .replace("R$", "")
+            .trim()
+            .replace(/\./g, "")
+            .replace(",", ".")
+        )
 
-  try {
-    if (isWinner && prize) {
-      const amount = parseFloat(
-        prize.value
-          .replace("R$", "")
-          .trim()
-          .replace(/\./g, "")
-          .replace(",", ".")
-      )
+        if (isNaN(amount)) {
+          console.error("Valor do prêmio inválido:", prize.value)
+          return
+        }
 
-      if (isNaN(amount)) {
-        console.error("Valor do prêmio inválido:", prize.value)
-        return
+        const res = await fetch("/api/games", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            transactionId: purchaseId,
+            action: "win",
+            prizeValue: prize.value,
+          }),
+        })
+
+        if (!res.ok) {
+          console.error("Erro ao registrar vitória")
+        }
+      } else {
+        const res = await fetch("/api/games", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            transactionId: purchaseId,
+            action: "lost",
+          }),
+        })
+
+        if (!res.ok) {
+          console.error("Erro ao registrar perda")
+        }
       }
-
-      const res = await fetch("/api/games", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transactionId: purchaseId,
-          action: "win",
-          prizeValue: prize.value,
-        }),
-      })
-
-      if (!res.ok) {
-        console.error("Erro ao registrar vitória")
-      }
-    } else {
-      const res = await fetch("/api/games", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transactionId: purchaseId,
-          action: "lost",
-        }),
-      })
-
-      if (!res.ok) {
-        console.error("Erro ao registrar perda")
-      }
+    } catch (err) {
+      console.error("Erro na requisição para /api/games", err)
     }
-  } catch (err) {
-    console.error("Erro na requisição para /api/games", err)
   }
-}
 
   const handlePlayAgain = async () => {
     if (balance < 2.5) {
@@ -197,6 +237,7 @@ const handleGameComplete = async (isWinner: boolean, prize?: Prize) => {
         setBalance(prev => prev - 2.5)
         setPurchaseId(data.transactionId)
         setGameKey(prev => prev + 1)
+        console.log("handlePlayAgain, purchaseId:", data.transactionId) // Debug
       } else {
         const error = await res.json()
         console.error("Erro ao debitar saldo:", error.error)
@@ -209,12 +250,19 @@ const handleGameComplete = async (isWinner: boolean, prize?: Prize) => {
     }
   }
 
+  // ALTERAÇÃO: Função para resetar estados ao sair
+  const handleBack = () => {
+    setPurchaseId(null)
+    resetPlaying() // Chama resetPlaying para resetar isPlaying no componente pai
+    onBack()
+  }
+
   return (
     <PageLayout
       title="Me mimei"
       subtitle="Raspe e ganhe produtos de beleza incríveis!"
       showBackButton
-      onBack={onBack}
+      onBack={handleBack} // ALTERAÇÃO: Usa handleBack personalizado
       user={{ ...user, balance }}
       onLogout={onLogout}
       onNavigate={onNavigate}

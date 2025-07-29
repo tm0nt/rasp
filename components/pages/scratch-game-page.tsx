@@ -26,21 +26,60 @@ interface ScratchGamePageProps {
   onLogout: () => void
   onNavigate: (page: string) => void
   categoryId: number
+  isPlaying: boolean
+  resetPlaying: () => void // ALTERAÇÃO: Adiciona prop para resetar isPlaying
 }
 
-export function ScratchGamePage({ onBack, user, onLogout, onNavigate, categoryId, rtp }: ScratchGamePageProps) {
+export function ScratchGamePage({ onBack, user, onLogout, onNavigate, categoryId, rtp, isPlaying, resetPlaying }: ScratchGamePageProps) {
   const [gameKey, setGameKey] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [balance, setBalance] = useState(user.balance)
   const [revealedPrizes, setRevealedPrizes] = useState<Prize[]>([])
   const [purchaseId, setPurchaseId] = useState<string | null>(null)
 
+  const fetchPurchaseId = async () => {
+    if (!isPlaying || purchaseId) return // Evita chamadas redundantes
+
+    try {
+      setIsLoading(true)
+      const res = await fetch("/api/games/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          categoryId,
+          amount: 0.5,
+        }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setPurchaseId(data.transactionId)
+        setBalance(prev => prev - 0.5)
+      } else {
+        const error = await res.json()
+        console.error("Erro ao obter purchaseId:", error.error)
+        if (error.error === 'Saldo insuficiente') {
+          onNavigate("deposit")
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao conectar com /api/games/purchase", err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   useEffect(() => {
+    if (isPlaying) {
+      fetchPurchaseId()
+      setRevealedPrizes(generateRevealedPrizes())
+    }
+
     const timer = setTimeout(() => {
       setIsLoading(false)
     }, 800)
     return () => clearTimeout(timer)
-  }, [])
+  }, [isPlaying, gameKey])
 
   const prizes = [
     { id: "1", name: "2 Mil Reais", value: "R$ 2000,00", image: "/images/money-2000.png" },
@@ -121,60 +160,55 @@ export function ScratchGamePage({ onBack, user, onLogout, onNavigate, categoryId
     return prizesGrid.sort(() => Math.random() - 0.5) // Embaralha
   }
 
-  useEffect(() => {
-    setRevealedPrizes(generateRevealedPrizes())
-  }, [gameKey])
+  const handleGameComplete = async (isWinner: boolean, prize?: Prize) => {
+    if (!purchaseId || !isPlaying) return
 
-const handleGameComplete = async (isWinner: boolean, prize?: Prize) => {
-  if (!purchaseId) return
+    try {
+      if (isWinner && prize) {
+        const amount = parseFloat(
+          prize.value
+            .replace("R$", "")
+            .trim()
+            .replace(/\./g, "")
+            .replace(",", ".")
+        )
 
-  try {
-    if (isWinner && prize) {
-      const amount = parseFloat(
-        prize.value
-          .replace("R$", "")
-          .trim()
-          .replace(/\./g, "")
-          .replace(",", ".")
-      )
+        if (isNaN(amount)) {
+          console.error("Valor do prêmio inválido:", prize.value)
+          return
+        }
 
-      if (isNaN(amount)) {
-        console.error("Valor do prêmio inválido:", prize.value)
-        return
+        const res = await fetch("/api/games", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            transactionId: purchaseId,
+            action: "win",
+            prizeValue: prize.value,
+          }),
+        })
+
+        if (!res.ok) {
+          console.error("Erro ao registrar vitória")
+        }
+      } else {
+        const res = await fetch("/api/games", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            transactionId: purchaseId,
+            action: "lost",
+          }),
+        })
+
+        if (!res.ok) {
+          console.error("Erro ao registrar perda")
+        }
       }
-
-      const res = await fetch("/api/games", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transactionId: purchaseId,
-          action: "win",
-          prizeValue: prize.value,
-        }),
-      })
-
-      if (!res.ok) {
-        console.error("Erro ao registrar vitória")
-      }
-    } else {
-      const res = await fetch("/api/games", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transactionId: purchaseId,
-          action: "lost",
-        }),
-      })
-
-      if (!res.ok) {
-        console.error("Erro ao registrar perda")
-      }
+    } catch (err) {
+      console.error("Erro na requisição para /api/games", err)
     }
-  } catch (err) {
-    console.error("Erro na requisição para /api/games", err)
   }
-}
-
 
   const handlePlayAgain = async () => {
     if (balance < 0.5) {
@@ -209,12 +243,18 @@ const handleGameComplete = async (isWinner: boolean, prize?: Prize) => {
     }
   }
 
+  const handleBack = () => {
+    setPurchaseId(null)
+    resetPlaying() // ALTERAÇÃO: Usa a prop resetPlaying para resetar isPlaying no componente pai
+    onBack()
+  }
+
   return (
     <PageLayout
       title="PIX na conta"
       subtitle="Raspe e ganhe prêmios em dinheiro!"
       showBackButton
-      onBack={onBack}
+      onBack={handleBack}
       user={{ ...user, balance }}
       onLogout={onLogout}
       onNavigate={onNavigate}
