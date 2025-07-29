@@ -305,9 +305,9 @@ export function RaspouGanhouApp() {
               <Image
                 src="/images/logo.png"
                 alt="Raspou Ganhou"
-                width={150}
+                width={120}
                 height={20}
-                className="transition-transform duration-300 group-hover:scale-105"
+                className="w-24 transition-transform duration-300 group-hover:scale-105"
                 priority
               />
             </div>
