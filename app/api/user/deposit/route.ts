@@ -122,7 +122,7 @@ export async function POST(request: Request) {
 
   } catch (error) {
     return NextResponse.json(
-      { error: 'Erro ao processar depósito' },
+      { error: 'Erro ao processar depósito.' },
       { status: 500 }
     )
   }
