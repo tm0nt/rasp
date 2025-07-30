@@ -34,6 +34,7 @@ export function GeneralSettings() {
     facebookPixelId: "",
   })
 
+  const [withdrawalFee, setWithdrawalFee] = useState(0)
   const [rtpValue, setRtpValue] = useState(0)
   const [maintenanceMode, setMaintenanceMode] = useState(false)
 
@@ -43,7 +44,7 @@ export function GeneralSettings() {
     const handleOffline = () => setIsOnline(false)
     
     window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
+    window.removeEventListener('offline', handleOffline)
     
     return () => {
       window.removeEventListener('online', handleOnline)
@@ -74,6 +75,7 @@ export function GeneralSettings() {
           setSiteConfig(data.data.siteConfig)
           setSeoConfig(data.data.seoConfig)
           setMaintenanceMode(data.data.maintenanceMode)
+          setWithdrawalFee(parseInt(data.data.withdrawalFee) || 0)
           setRtpValue(parseInt(data.data.rtpValue) || 0)
         } else {
           toast({
@@ -98,6 +100,31 @@ export function GeneralSettings() {
     
     loadSettings()
   }, [toast, isOnline])
+
+  // Handle Withdrawal Fee change with validation
+  const handleWithdrawalFeeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    
+    if (value === '') {
+      setWithdrawalFee(0);
+      return;
+    }
+    
+    const numValue = parseInt(value);
+    
+    if (!isNaN(numValue)) {
+      if (numValue >= 0 && numValue <= 100) {
+        setWithdrawalFee(numValue);
+      } else {
+        toast({
+          title: "Valor inválido",
+          description: "A taxa de saque deve estar entre 0 e 100",
+          variant: "destructive",
+          duration: 3000,
+        })
+      }
+    }
+  };
 
   // Handle RTP value change with validation
   const handleRtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -149,6 +176,7 @@ export function GeneralSettings() {
             siteConfig,
             seoConfig,
             maintenanceMode,
+            withdrawalFee,
             rtpValue
           }
         })
@@ -253,6 +281,23 @@ export function GeneralSettings() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-gray-300 text-sm font-medium mb-2">
+                Taxa de Saque (0-100)
+              </label>
+              <Input
+                type="number"
+                value={withdrawalFee || ''}
+                onChange={handleWithdrawalFeeChange}
+                min="0"
+                max="100"
+                className="bg-gray-700 border-gray-600 text-white"
+                inputMode="numeric"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                A taxa de saque determina a porcentagem cobrada nas retiradas.
+              </p>
+            </div>
             <div>
               <label className="block text-gray-300 text-sm font-medium mb-2">
                 Valor do RTP (0-100)

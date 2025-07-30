@@ -52,6 +52,7 @@ export function RaspouGanhouApp() {
   const [rtp, setRtp] = useState<number>(85) // Inicializa com 85 e será sobrescrito pela API
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [purchaseLoading, setPurchaseLoading] = useState<number | null>(null)
+  const [taxWithdrawal, setWithdrawalTax] = useState(30)
   const [isPlaying, setIsPlaying] = useState(false) // Estado para indicar que o jogador está no modo "play"
 
   const categories = [
@@ -108,6 +109,7 @@ export function RaspouGanhouApp() {
         const response = await fetch("/api/config/app")
         const data = await response.json()
         const apiRtp = parseFloat(data.data?.rtp_value) || 85.0
+        setWithdrawalTax(parseFloat(data.data?.withdrawal_fee))
         setRtp(apiRtp)
         console.log("RTP configurado:", apiRtp)
       } catch (error) {
@@ -224,7 +226,7 @@ export function RaspouGanhouApp() {
   }
 
   if (currentPage === "withdraw" && isAuthenticated && user) {
-    return <WithdrawPage onBack={goBack} user={user} onLogout={logout} onNavigate={handleNavigate} />
+    return <WithdrawPage onBack={goBack} user={user} onLogout={logout} onNavigate={handleNavigate} taxWithdrawal={taxWithdrawal} />
   }
 
   if (currentPage === "bonuses" && isAuthenticated && user) {

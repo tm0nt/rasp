@@ -26,6 +26,7 @@ interface SystemSettings {
   seoConfig: SeoConfig
   maintenanceMode: boolean
   rtpValue: number
+  withdrawalFee: number
 }
 
 // GET - Buscar configurações
@@ -37,7 +38,8 @@ export async function GET() {
       WHERE key IN (
         'site_name', 'site_url', 'site_description', 'site_logo', 'site_favicon',
         'support_email', 'support_phone', 'seo_meta_title', 'seo_meta_description',
-        'seo_meta_keywords', 'seo_google_analytics', 'seo_facebook_pixel', 'maintenance_mode', 'rtp_value'
+        'seo_meta_keywords', 'seo_google_analytics', 'seo_facebook_pixel', 
+        'maintenance_mode', 'rtp_value', 'withdrawal_fee'
       )
     `)
 
@@ -73,7 +75,8 @@ export async function GET() {
           facebookPixelId: config.seo_facebook_pixel || '',
         },
         maintenanceMode: config.maintenance_mode === 'true' || false,
-        rtpValue: config.rtp_value ? parseInt(config.rtp_value) : 0
+        rtpValue: config.rtp_value ? parseInt(config.rtp_value) : 0,
+        withdrawalFee: config.withdrawal_fee ? parseInt(config.withdrawal_fee) : 0
       }
     })
 
@@ -120,7 +123,8 @@ export async function POST(request: Request) {
       { key: 'seo_google_analytics', value: settings.seoConfig.googleAnalyticsId },
       { key: 'seo_facebook_pixel', value: settings.seoConfig.facebookPixelId },
       { key: 'maintenance_mode', value: settings.maintenanceMode.toString() },
-      { key: 'rtp_value', value: settings.rtpValue },
+      { key: 'rtp_value', value: settings.rtpValue.toString() },
+      { key: 'withdrawal_fee', value: settings.withdrawalFee.toString() },
     ]
 
     // Execute all updates in a transaction
