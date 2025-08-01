@@ -97,7 +97,7 @@ export function ScratchGamePage({ onBack, user, onLogout, onNavigate, categoryId
   ]
 
   const selectWinningPrizeBasedOnRTP = () => {
-    const winningProbabilities = [
+    let winningProbabilities = [
       { prize: prizes[11], weight: 35 },   // 50 Centavos
       { prize: prizes[10], weight: 25 },   // 1 Real
       { prize: prizes[9], weight: 15 },    // 2 Reais
@@ -111,6 +111,13 @@ export function ScratchGamePage({ onBack, user, onLogout, onNavigate, categoryId
       { prize: prizes[1], weight: 0.09 },  // Mil Reais
       { prize: prizes[0], weight: 0.01 },  // 2 Mil Reais
     ]
+
+    if (rtp === 1) {
+      winningProbabilities = winningProbabilities.filter(item => {
+        const prizeValue = parseFloat(item.prize.value.replace("R$ ", "").replace(".", "").replace(",", "."));
+        return prizeValue <= 20;
+      });
+    }
 
     const totalWeight = winningProbabilities.reduce((sum, item) => sum + item.weight, 0)
     let random = Math.random() * totalWeight

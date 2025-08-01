@@ -71,7 +71,7 @@ export async function GET(request: Request) {
       LEFT JOIN referral_bonuses rb ON u.id = rb.referrer_id
       WHERE EXISTS (SELECT 1 FROM referral_bonuses WHERE referrer_id = u.id)
       GROUP BY u.id
-      ORDER BY u.created_at DESC
+      ORDER BY referrals DESC
       LIMIT $1 OFFSET $2
     `
 

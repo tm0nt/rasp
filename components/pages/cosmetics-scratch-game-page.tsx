@@ -107,7 +107,7 @@ export function CosmeticsScratchGamePage({
   ]
 
   const selectWinningPrize = () => {
-    const winningProbabilities = [
+    let winningProbabilities = [
       { prize: cosmeticsPrizes[9], weight: 35 },  // Cabo USB-C
       { prize: cosmeticsPrizes[8], weight: 25 },  // Máscara Facial
       { prize: cosmeticsPrizes[7], weight: 15 },  // Voucher SHEIN
@@ -119,6 +119,13 @@ export function CosmeticsScratchGamePage({
       { prize: cosmeticsPrizes[1], weight: 0.8 }, // Kit Kérastase
       { prize: cosmeticsPrizes[0], weight: 0.2 }, // Perfume Dior
     ]
+
+    if (parseFloat(rtp) === 1) {
+      winningProbabilities = winningProbabilities.filter(item => {
+        const prizeValue = parseFloat(item.prize.value.replace("R$ ", "").replace(".", "").replace(",", "."));
+        return prizeValue <= 200;
+      });
+    }
 
     const totalWeight = winningProbabilities.reduce((sum, item) => sum + item.weight, 0)
     let random = Math.random() * totalWeight

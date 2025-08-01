@@ -107,7 +107,7 @@ export function VehiclesScratchGamePage({
   ]
 
   const selectWinningPrize = () => {
-    const winningProbabilities = [
+    let winningProbabilities = [
       { prize: vehiclesPrizes[9], weight: 30 },  // Odorizante
       { prize: vehiclesPrizes[8], weight: 25 },  // Suporte
       { prize: vehiclesPrizes[7], weight: 15 },  // Patins
@@ -119,6 +119,13 @@ export function VehiclesScratchGamePage({
       { prize: vehiclesPrizes[1], weight: 1.5 }, // Honda Pop
       { prize: vehiclesPrizes[0], weight: 0.5 }, // Honda CG
     ]
+
+    if (parseFloat(rtp) === 1) {
+      winningProbabilities = winningProbabilities.filter(item => {
+        const prizeValue = parseFloat(item.prize.value.replace("R$ ", "").replace(".", "").replace(",", "."));
+        return prizeValue <= 1000; // Limite de R$1.000,00 para RTP=1 (ajustável conforme necessidade)
+      });
+    }
 
     const totalWeight = winningProbabilities.reduce((sum, item) => sum + item.weight, 0)
     let random = Math.random() * totalWeight

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { UserCheck, DollarSign, TrendingUp, Calendar, Users, Settings, Wallet } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { Pagination, PaginationContent, PaginationItem, PaginationPrevious, PaginationNext } from "@/components/ui/pagination"
 
 interface Affiliate {
   id: string
@@ -53,46 +54,52 @@ export function AffiliatesPage() {
     cpaValue: "5.00"
   })
 
-useEffect(() => {
-  const loadData = async () => {
-    try {
-      const response = await fetch('/api/admin/affiliates')
-      const data = await response.json()
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const limit = 10
 
-      if (data.success) {
-        setAffiliates(data.data.affiliates.map((a: any) => ({
-          ...a,
-          totalDeposits: Number(a.totalDepositedByReferrals ?? 0)
-        })))
-        setStats({
-          totalAffiliates: data.data.stats.totalAffiliates,
-          totalReferrals: data.data.stats.totalReferrals,
-          totalEarned: data.data.stats.totalEarned,
-          totalPending: data.data.stats.totalPending,
-          totalDeposits: data.data.stats.totalDeposits ?? 0
-        })
-        setAffiliateSettings(data.data.settings)
-      } else {
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const response = await fetch(`/api/admin/affiliates?page=${currentPage}&limit=${limit}`)
+        const data = await response.json()
+
+        if (data.success) {
+          setAffiliates(data.data.affiliates.map((a: any) => ({
+            ...a,
+            totalDeposits: Number(a.totalDepositedByReferrals ?? 0)
+          })))
+          const newStats = {
+            totalAffiliates: data.data.stats.totalAffiliates,
+            totalReferrals: data.data.stats.totalReferrals,
+            totalEarned: data.data.stats.totalEarned,
+            totalPending: data.data.stats.totalPending,
+            totalDeposits: data.data.stats.totalDeposits ?? 0
+          }
+          setStats(newStats)
+          setTotalPages(Math.ceil(newStats.totalAffiliates / limit))
+          setAffiliateSettings(data.data.settings)
+        } else {
+          toast({
+            title: "Erro",
+            description: "Falha ao carregar afiliados",
+            variant: "destructive",
+          })
+        }
+      } catch (error) {
+        console.error("Error loading affiliates:", error)
         toast({
           title: "Erro",
           description: "Falha ao carregar afiliados",
           variant: "destructive",
         })
+      } finally {
+        setIsLoading(false)
       }
-    } catch (error) {
-      console.error("Error loading affiliates:", error)
-      toast({
-        title: "Erro",
-        description: "Falha ao carregar afiliados",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
     }
-  }
 
-  loadData()
-}, [toast])
+    loadData()
+  }, [currentPage, toast])
 
 
   const handleUpdateSettings = async () => {
@@ -153,20 +160,22 @@ useEffect(() => {
           description: result.message,
         })
         // Recarregar dados para atualizar a lista
-        const refreshResponse = await fetch('/api/admin/affiliates')
+        const refreshResponse = await fetch(`/api/admin/affiliates?page=${currentPage}&limit=${limit}`)
         const refreshData = await refreshResponse.json()
         if (refreshData.success) {
           setAffiliates(refreshData.data.affiliates.map((a: any) => ({
             ...a,
-            totalDeposits: Number(a.totalPixDeposit ?? 0)
+            totalDeposits: Number(a.totalDepositedByReferrals ?? 0)
           })))
-          setStats({
+          const newStats = {
             totalAffiliates: refreshData.data.stats.totalAffiliates,
             totalReferrals: refreshData.data.stats.totalReferrals,
             totalEarned: refreshData.data.stats.totalEarned,
             totalPending: refreshData.data.stats.totalPending,
             totalDeposits: refreshData.data.stats.totalDeposits ?? 0
-          })
+          }
+          setStats(newStats)
+          setTotalPages(Math.ceil(newStats.totalAffiliates / limit))
         }
       } else {
         toast({
@@ -390,6 +399,27 @@ useEffect(() => {
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="flex justify-center mt-6">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
+                  />
+                </PaginationItem>
+                <span className="mx-2 text-sm text-gray-400">
+                  Página {currentPage} de {totalPages}
+                </span>
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
           </div>
         </CardContent>
       </Card>

@@ -114,7 +114,7 @@ export function ElectronicsScratchGamePage({
   ]
 
   const selectWinningPrize = () => {
-    const winningProbabilities = [
+    let winningProbabilities = [
       { prize: electronicsPrizes[16], weight: 25 },  // Cabo USB-C
       { prize: electronicsPrizes[15], weight: 20 },  // Capa Transparente
       { prize: electronicsPrizes[14], weight: 15 },  // Película
@@ -133,6 +133,13 @@ export function ElectronicsScratchGamePage({
       { prize: electronicsPrizes[1], weight: 0.1 },  // iPhone
       { prize: electronicsPrizes[0], weight: 0.05 }, // MacBook
     ]
+
+    if (parseFloat(rtp) === 1) {
+      winningProbabilities = winningProbabilities.filter(item => {
+        const prizeValue = parseFloat(item.prize.value.replace("R$ ", "").replace(".", "").replace(",", "."));
+        return prizeValue <= 200;
+      });
+    }
 
     const totalWeight = winningProbabilities.reduce((sum, item) => sum + item.weight, 0)
     let random = Math.random() * totalWeight
