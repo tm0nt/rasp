@@ -138,8 +138,7 @@ function WalletCell({ balance }: { balance: number }) {
     <td className="py-4 px-4">
       <div className="flex items-center gap-2">
         <Wallet className="w-4 h-4 text-green-400" />
-        <span className="text-green-400 font-medium">R$ {balance.toFixed(2).replace(".", ",")}</span>
-      </div>
+<span className="text-green-400 font-medium">R$ {(balance ?? 0).toFixed(2).replace(".", ",")}</span>      </div>
     </td>
   )
 }
