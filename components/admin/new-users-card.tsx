@@ -131,7 +131,7 @@ function UserItem({ user }: { user: IUser }) {
           {getRelativeDate(user.createdAt)}
         </p>
         <p className="text-xs text-green-400">
-          R$ {user.balance.toFixed(2).replace(".", ",")}
+          R$ {(user.balance ?? 0).toFixed(2).replace(".", ",")}
         </p>
       </div>
     </div>
