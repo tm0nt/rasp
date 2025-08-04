@@ -38,7 +38,7 @@ export async function GET(request: Request) {
   const limit = parseInt(searchParams.get('limit') || '10')
 
   try {
-    // Obter afiliados (usuários que têm referências)
+    // Obter afiliados (usuários que indicaram outras pessoas)
     const affiliatesQuery = `
       SELECT 
         u.id,
@@ -52,8 +52,6 @@ export async function GET(request: Request) {
             AND pt.type = 'deposit'
             AND pt.status = 'completed'
         ) AS referrals,
-        COALESCE(SUM(CASE WHEN rb.status = 'paid' THEN rb.bonus_amount ELSE 0 END), 0) as total_earned,
-        COALESCE(SUM(CASE WHEN rb.status = 'pending' THEN rb.bonus_amount ELSE 0 END), 0) as pending_earned,
         (
           SELECT COALESCE(SUM(pt.amount), 0)
           FROM users r
@@ -62,14 +60,15 @@ export async function GET(request: Request) {
             AND pt.type = 'deposit'
             AND pt.status = 'completed'
         ) AS total_deposited_by_referrals,
-        u.created_at as join_date,
+        u.created_at AS join_date,
         CASE 
           WHEN u.is_active = false THEN 'Inativo'
           ELSE 'Ativo'
-        END as status
+        END AS status
       FROM users u
-      LEFT JOIN referral_bonuses rb ON u.id = rb.referrer_id
-      WHERE EXISTS (SELECT 1 FROM referral_bonuses WHERE referrer_id = u.id)
+      WHERE EXISTS (
+        SELECT 1 FROM users r WHERE r.referred_by = u.id
+      )
       GROUP BY u.id
       ORDER BY referrals DESC
       LIMIT $1 OFFSET $2
@@ -77,10 +76,10 @@ export async function GET(request: Request) {
 
     const affiliatesResult = await query(affiliatesQuery, [limit, (page - 1) * limit])
 
-    // Obter estatísticas totais e soma total dos depósitos dos afiliados
+    // Obter estatísticas totais
     const statsQuery = `
       SELECT 
-        COUNT(DISTINCT u.id) as total_affiliates,
+        COUNT(DISTINCT u.id) AS total_affiliates,
         (
           SELECT COUNT(DISTINCT r.id)
           FROM users r
@@ -88,9 +87,7 @@ export async function GET(request: Request) {
           WHERE r.referred_by IS NOT NULL
             AND pt.type = 'deposit'
             AND pt.status = 'completed'
-        ) as total_referrals,
-        COALESCE(SUM(CASE WHEN rb.status = 'paid' THEN rb.bonus_amount ELSE 0 END), 0) as total_earned,
-        COALESCE(SUM(CASE WHEN rb.status = 'pending' THEN rb.bonus_amount ELSE 0 END), 0) as total_pending,
+        ) AS total_referrals,
         (
           SELECT COALESCE(SUM(pt.amount), 0)
           FROM users r
@@ -100,8 +97,9 @@ export async function GET(request: Request) {
             AND pt.status = 'completed'
         ) AS total_deposits
       FROM users u
-      LEFT JOIN referral_bonuses rb ON u.id = rb.referrer_id
-      WHERE EXISTS (SELECT 1 FROM referral_bonuses WHERE referrer_id = u.id)
+      WHERE EXISTS (
+        SELECT 1 FROM users r WHERE r.referred_by = u.id
+      )
     `
 
     const statsResult = await query(statsQuery)
@@ -120,8 +118,8 @@ export async function GET(request: Request) {
       name: row.name,
       email: row.email,
       referrals: parseInt(row.referrals),
-      totalEarned: parseFloat(row.total_earned),
-      pendingEarned: parseFloat(row.pending_earned),
+      totalEarned: 0,
+      pendingEarned: 0,
       totalDepositedByReferrals: parseFloat(row.total_deposited_by_referrals),
       joinDate: new Date(row.join_date).toISOString().split('T')[0],
       status: row.status
@@ -130,8 +128,8 @@ export async function GET(request: Request) {
     const stats: AffiliateStats & { totalDeposits: number } = {
       totalAffiliates: parseInt(statsResult.rows[0].total_affiliates),
       totalReferrals: parseInt(statsResult.rows[0].total_referrals),
-      totalEarned: parseFloat(statsResult.rows[0].total_earned),
-      totalPending: parseFloat(statsResult.rows[0].total_pending),
+      totalEarned: 0,
+      totalPending: 0,
       totalDeposits: parseFloat(statsResult.rows[0].total_deposits)
     }
 
