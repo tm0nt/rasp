@@ -1,8 +1,3 @@
-/**
- * Serviço de autenticação para administradores
- * Implementa Single Responsibility Principle (SRP)
- */
-
 import type { IAdminAuthService } from "@/interfaces/admin-services"
 import type { IAdmin } from "@/types/admin"
 
@@ -10,10 +5,6 @@ export class AdminAuthService implements IAdminAuthService {
   private static instance: AdminAuthService
   private admin: IAdmin | null = null
   private readonly STORAGE_KEY = "admin_token"
-  private readonly DEV_CREDENTIALS = {
-    email: "admin@raspouganhou.com",
-    password: "admin123",
-  }
 
   // Implementa Singleton pattern para garantir uma única instância
   public static getInstance(): AdminAuthService {
@@ -30,18 +21,33 @@ export class AdminAuthService implements IAdminAuthService {
    */
   async login(credentials: { email: string; password: string }): Promise<{ success: boolean; error?: string }> {
     try {
-      // Simula delay de rede
-      await this.simulateNetworkDelay(1500)
+      // Chama a API Next.js para autenticação
+      const response = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(credentials),
+      })
 
-      // Valida credenciais de desenvolvimento
-      if (this.validateCredentials(credentials)) {
-        this.admin = this.createAdminFromCredentials(credentials)
-        this.saveAuthToken()
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        // Caso a autenticação seja bem-sucedida, cria o admin e salva o token
+        this.admin = { 
+          id: "admin-1", 
+          name: "Administrador", 
+          email: credentials.email, 
+          role: "Super Admin", 
+          createdAt: new Date().toISOString(),
+        }
+        this.saveAuthToken(data.token)  // Salva o token recebido da API
         return { success: true }
       }
 
-      return { success: false, error: "Credenciais inválidas" }
+      return { success: false, error: data.error || "Credenciais inválidas" }
     } catch (error) {
+      console.error("Erro ao tentar fazer login:", error)
       return { success: false, error: "Erro interno do servidor" }
     }
   }
@@ -69,33 +75,11 @@ export class AdminAuthService implements IAdminAuthService {
   }
 
   /**
-   * Valida as credenciais fornecidas
-   * @private
-   */
-  private validateCredentials(credentials: { email: string; password: string }): boolean {
-    return credentials.email === this.DEV_CREDENTIALS.email && credentials.password === this.DEV_CREDENTIALS.password
-  }
-
-  /**
-   * Cria objeto admin a partir das credenciais
-   * @private
-   */
-  private createAdminFromCredentials(credentials: { email: string; password: string }): IAdmin {
-    return {
-      id: "admin-1",
-      name: "Administrador",
-      email: credentials.email,
-      role: "Super Admin",
-      createdAt: new Date().toISOString(),
-    }
-  }
-
-  /**
    * Salva token de autenticação no localStorage
    * @private
    */
-  private saveAuthToken(): void {
-    localStorage.setItem(this.STORAGE_KEY, "fake-admin-token")
+  private saveAuthToken(token: string): void {
+    localStorage.setItem(this.STORAGE_KEY, token)
   }
 
   /**
