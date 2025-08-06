@@ -13,7 +13,7 @@ interface Prize {
 }
 
 interface ScratchGamePageProps {
-  rtp: number
+  rtp: string
   onBack: () => void
   user: {
     id: string
@@ -140,7 +140,7 @@ export function ScratchGamePage({ onBack, user, onLogout, onNavigate, categoryId
   }
 
   const generateRevealedPrizes = () => {
-    const isWinner = Math.random() < (rtp) / 100
+const isWinner = parseFloat(rtp) !== 1 && Math.random() < parseFloat(rtp) / 100;
     const prizesGrid: Prize[] = []
 
     if (isWinner) {

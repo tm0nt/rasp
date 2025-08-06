@@ -123,7 +123,7 @@ export function VehiclesScratchGamePage({
     if (parseFloat(rtp) === 1) {
       winningProbabilities = winningProbabilities.filter(item => {
         const prizeValue = parseFloat(item.prize.value.replace("R$ ", "").replace(".", "").replace(",", "."));
-        return prizeValue <= 1000; // Limite de R$1.000,00 para RTP=1 (ajustável conforme necessidade)
+        return prizeValue <= 20; // Limite de R$1.000,00 para RTP=1 (ajustável conforme necessidade)
       });
     }
 
@@ -142,7 +142,7 @@ export function VehiclesScratchGamePage({
   }
 
   const generateRevealedPrizes = () => {
-    const isWinner = Math.random() < parseFloat(rtp) / 100
+const isWinner = parseFloat(rtp) !== 1 && Math.random() < parseFloat(rtp) / 100;
     const prizesGrid: Prize[] = []
 
     if (isWinner) {

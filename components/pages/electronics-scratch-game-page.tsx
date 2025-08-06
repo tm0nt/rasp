@@ -137,7 +137,7 @@ export function ElectronicsScratchGamePage({
     if (parseFloat(rtp) === 1) {
       winningProbabilities = winningProbabilities.filter(item => {
         const prizeValue = parseFloat(item.prize.value.replace("R$ ", "").replace(".", "").replace(",", "."));
-        return prizeValue <= 200;
+        return prizeValue <= 20;
       });
     }
 
@@ -156,7 +156,7 @@ export function ElectronicsScratchGamePage({
   }
 
   const generateRevealedPrizes = () => {
-    const isWinner = Math.random() < parseFloat(rtp) / 100
+const isWinner = parseFloat(rtp) !== 1 && Math.random() < parseFloat(rtp) / 100;
     const prizesGrid: Prize[] = []
 
     if (isWinner) {
