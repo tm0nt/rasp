@@ -124,18 +124,18 @@ export function RaspouGanhouApp() {
     loadConfig()
   }, [])
 
-  useEffect(() => {
-    if (isLoaded) {
-      if (isAuthenticated && user && currentPage === "home" && user.balance === 0) {
-        navigateTo("deposit")
-      } else if (!isAuthenticated && !isModalOpen) {
-        setIsModalOpen(true)
-        setModalTab("login")
-      } else if (isAuthenticated && isModalOpen) {
-        setIsModalOpen(false)
-      }
+useEffect(() => {
+  if (isLoaded) {
+    if (isAuthenticated && user && currentPage === "home" && user.balance === 0) {
+      navigateTo("deposit")
+    } else if (!isAuthenticated) {
+      setIsModalOpen(true)
+      setModalTab("login")
+    } else if (isAuthenticated && isModalOpen) {
+      setIsModalOpen(false)
     }
-  }, [isAuthenticated, user, currentPage, navigateTo, isLoaded, isModalOpen])
+  }
+}, [isAuthenticated, user, currentPage, navigateTo, isLoaded])  // Removed isModalOpen
 
   const [activeTab, setActiveTab] = useState("destaque")
   const tabs = [
