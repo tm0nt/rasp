@@ -49,11 +49,14 @@ export function RaspouGanhouApp() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalTab, setModalTab] = useState<"login" | "register">("login")
   const [isLoaded, setIsLoaded] = useState(false)
+  const [hasDismissedModal, setHasDismissedModal] = useState(false)
   const [rtp, setRtp] = useState<number>(85) // Inicializa com 85 e será sobrescrito pela API
   const [minWithdrawal, setMinWithdrawal] = useState<number>(10) // Inicializa com 10 e será sobrescrito pela API
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [purchaseLoading, setPurchaseLoading] = useState<number | null>(null)
   const [isPlaying, setIsPlaying] = useState(false) // Estado para indicar que o jogador está no modo "play"
+
+  
 
   const categories = [
     {
@@ -98,6 +101,12 @@ export function RaspouGanhouApp() {
   const { currentPage, navigateTo, goBack } = useNavigation()
   const { showToast } = useToast()
 
+  useEffect(() => {
+  if (isAuthenticated) {
+    setHasDismissedModal(false)
+  }
+}, [isAuthenticated])
+
   // ALTERAÇÃO: Callback para resetar isPlaying
   const resetPlaying = () => {
     setIsPlaying(false)
@@ -128,14 +137,14 @@ useEffect(() => {
   if (isLoaded) {
     if (isAuthenticated && user && currentPage === "home" && user.balance === 0) {
       navigateTo("deposit")
-    } else if (!isAuthenticated) {
+    } else if (!isAuthenticated && !hasDismissedModal) {
       setIsModalOpen(true)
       setModalTab("login")
     } else if (isAuthenticated && isModalOpen) {
       setIsModalOpen(false)
     }
   }
-}, [isAuthenticated, user, currentPage, navigateTo, isLoaded])  // Removed isModalOpen
+}, [isAuthenticated, user, currentPage, navigateTo, isLoaded, hasDismissedModal])
 
   const [activeTab, setActiveTab] = useState("destaque")
   const tabs = [
@@ -430,12 +439,17 @@ useEffect(() => {
 
       <MobileNav isAuthenticated={isAuthenticated} onAuthRequired={handleAuthRequired} onNavigate={handleNavigate} />
 
-      <AuthModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        initialTab={modalTab}
-        onAuthSuccess={handleAuthSuccess}
-      />
+<AuthModal
+  isOpen={isModalOpen}
+  onClose={() => {
+    setIsModalOpen(false)
+    if (!isAuthenticated) {
+      setHasDismissedModal(true)
+    }
+  }}
+  initialTab={modalTab}
+  onAuthSuccess={handleAuthSuccess}
+/>
     </div>
   )
 }
