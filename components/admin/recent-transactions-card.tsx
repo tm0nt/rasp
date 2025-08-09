@@ -16,6 +16,26 @@ export interface ITransaction {
   created_at: string
 }
 
+// Função para comparar listas de transações (id, created_at, amount e status)
+function areTransactionsEqual(arr1: ITransaction[], arr2: ITransaction[]) {
+  if (arr1.length !== arr2.length) return false
+
+  for (let i = 0; i < arr1.length; i++) {
+    const a = arr1[i]
+    const b = arr2[i]
+    if (
+      a.id !== b.id ||
+      a.created_at !== b.created_at ||
+      a.amount !== b.amount ||
+      a.status !== b.status
+    ) {
+      return false
+    }
+  }
+
+  return true
+}
+
 export function RecentTransactionsCard() {
   const [transactions, setTransactions] = useState<ITransaction[]>([])
   const [newTransactionIds, setNewTransactionIds] = useState<string[]>([])
@@ -24,7 +44,6 @@ export function RecentTransactionsCard() {
 
   const fetchRecentTransactions = async () => {
     try {
-      setLoading(true)
       const response = await fetch('/api/admin/transactions/recent?limit=5')
       const data = await response.json()
 
@@ -32,15 +51,33 @@ export function RecentTransactionsCard() {
         throw new Error(data.error || 'Failed to fetch recent transactions')
       }
 
-      const prevTransactionIds = transactions.map(t => t.id)
-      const newOnes = data.transactions.filter((t: ITransaction) => !prevTransactionIds.includes(t.id)).map((t: ITransaction) => t.id)
+      setTransactions((currentTransactions) => {
+        const combined = [...data.transactions, ...currentTransactions]
 
-      if (newOnes.length > 0) {
-        setNewTransactionIds(newOnes)
+        // Remove duplicados pelo id, mantendo o primeiro encontrado
+        const uniqueMap = new Map<string, ITransaction>()
+        combined.forEach(tx => {
+          if (!uniqueMap.has(tx.id)) uniqueMap.set(tx.id, tx)
+        })
+
+        const updatedTransactions = Array.from(uniqueMap.values())
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          .slice(0, 5)
+
+        if (areTransactionsEqual(updatedTransactions, currentTransactions)) {
+          return currentTransactions
+        }
+
+        const newIds = updatedTransactions
+          .filter(tx => !currentTransactions.some(ct => ct.id === tx.id))
+          .map(tx => tx.id)
+
+        setNewTransactionIds(newIds)
         setTimeout(() => setNewTransactionIds([]), 3000)
-      }
 
-      setTransactions(data.transactions)
+        return updatedTransactions
+      })
+
     } catch (err) {
       console.error('Error fetching transactions:', err)
       setError(err instanceof Error ? err.message : 'Unknown error')

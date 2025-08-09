@@ -15,15 +15,35 @@ export interface IUser {
   lastActivityAt: string | null
 }
 
+// Função para comparar se duas listas de usuários são iguais (id, createdAt, balance e lastActivityAt)
+function areUsersEqual(arr1: IUser[], arr2: IUser[]) {
+  if (arr1.length !== arr2.length) return false
+
+  for (let i = 0; i < arr1.length; i++) {
+    const a = arr1[i]
+    const b = arr2[i]
+
+    if (
+      a.id !== b.id ||
+      a.createdAt !== b.createdAt ||
+      a.balance !== b.balance ||
+      a.lastActivityAt !== b.lastActivityAt
+    ) {
+      return false
+    }
+  }
+
+  return true
+}
+
 export function NewUsersCard() {
   const [users, setUsers] = useState<IUser[]>([])
   const [newUserIds, setNewUserIds] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
+  const [initialLoading, setInitialLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const fetchRecentUsers = async () => {
     try {
-      setLoading(true)
       const response = await fetch('/api/admin/users/recent?limit=5')
       const data = await response.json()
 
@@ -31,31 +51,50 @@ export function NewUsersCard() {
         throw new Error(data.error || 'Failed to fetch recent users')
       }
 
-      const prevUserIds = users.map(u => u.id)
-      const newOnes = data.users.filter((u: IUser) => !prevUserIds.includes(u.id)).map((u: IUser) => u.id)
+      setUsers((currentUsers) => {
+        // Pega novos usuários que não estão na lista atual
+        const currentUserIds = new Set(currentUsers.map(u => u.id))
+        const newUsers = data.users.filter((u: IUser) => !currentUserIds.has(u.id))
 
-      if (newOnes.length > 0) {
-        setNewUserIds(newOnes)
+        if (newUsers.length === 0) {
+          // Sem novos usuários, retorna o estado atual
+          return currentUsers
+        }
+
+        // Junta os novos usuários na frente e limita a 5, ordenando por createdAt
+        const updatedUsers = [...newUsers, ...currentUsers]
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .slice(0, 5)
+
+        // Se a lista for igual, não atualiza o estado (evita reset)
+        if (areUsersEqual(updatedUsers, currentUsers)) {
+          return currentUsers
+        }
+
+        // Atualiza os IDs para efeito visual
+        setNewUserIds(newUsers.map(u => u.id))
         setTimeout(() => setNewUserIds([]), 3000)
-      }
 
-      setUsers(data.users)
+        return updatedUsers
+      })
     } catch (err) {
       console.error('Error fetching users:', err)
       setError(err instanceof Error ? err.message : 'Unknown error')
-    } finally {
-      setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchRecentUsers()
+    const initialFetch = async () => {
+      await fetchRecentUsers()
+      setInitialLoading(false)
+    }
+    initialFetch()
 
     const interval = setInterval(fetchRecentUsers, 5000)
     return () => clearInterval(interval)
   }, [])
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
