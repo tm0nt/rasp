@@ -18,30 +18,42 @@ export interface ITransaction {
 
 export function RecentTransactionsCard() {
   const [transactions, setTransactions] = useState<ITransaction[]>([])
+  const [newTransactionIds, setNewTransactionIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchRecentTransactions = async () => {
-      try {
-        setLoading(true)
-        const response = await fetch('/api/admin/transactions/recent?limit=5')
-        const data = await response.json()
+  const fetchRecentTransactions = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/admin/transactions/recent?limit=5')
+      const data = await response.json()
 
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to fetch recent transactions')
-        }
-
-        setTransactions(data.transactions)
-      } catch (err) {
-        console.error('Error fetching transactions:', err)
-        setError(err instanceof Error ? err.message : 'Unknown error')
-      } finally {
-        setLoading(false)
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch recent transactions')
       }
-    }
 
+      const prevTransactionIds = transactions.map(t => t.id)
+      const newOnes = data.transactions.filter((t: ITransaction) => !prevTransactionIds.includes(t.id)).map((t: ITransaction) => t.id)
+
+      if (newOnes.length > 0) {
+        setNewTransactionIds(newOnes)
+        setTimeout(() => setNewTransactionIds([]), 3000)
+      }
+
+      setTransactions(data.transactions)
+    } catch (err) {
+      console.error('Error fetching transactions:', err)
+      setError(err instanceof Error ? err.message : 'Unknown error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     fetchRecentTransactions()
+
+    const interval = setInterval(fetchRecentTransactions, 5000)
+    return () => clearInterval(interval)
   }, [])
 
   if (loading) {
@@ -78,7 +90,7 @@ export function RecentTransactionsCard() {
       <CardContent>
         <div className="space-y-3">
           {transactions.map((transaction) => (
-            <TransactionItem key={transaction.id} transaction={transaction} />
+            <TransactionItem key={transaction.id} transaction={transaction} isNew={newTransactionIds.includes(transaction.id)} />
           ))}
           {transactions.length === 0 && (
             <p className="text-gray-400 text-center py-4">Nenhuma transação recente</p>
@@ -89,7 +101,7 @@ export function RecentTransactionsCard() {
   )
 }
 
-function TransactionItem({ transaction }: { transaction: ITransaction }) {
+function TransactionItem({ transaction, isNew }: { transaction: ITransaction; isNew: boolean }) {
   const getStatusColor = (status: string): string => {
     switch (status) {
       case "completed":
@@ -144,7 +156,7 @@ function TransactionItem({ transaction }: { transaction: ITransaction }) {
   }
 
   return (
-    <div className="flex items-center justify-between p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors">
+    <div className={`flex items-center justify-between p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors ${isNew ? 'bg-yellow-900/50 animate-pulse' : ''}`}>
       <div>
         <p className="text-white font-medium">{transaction.userName}</p>
         <p className="text-gray-400 text-sm">
