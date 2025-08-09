@@ -55,6 +55,7 @@ export function RaspouGanhouApp() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [purchaseLoading, setPurchaseLoading] = useState<number | null>(null)
   const [isPlaying, setIsPlaying] = useState(false) // Estado para indicar que o jogador está no modo "play"
+  const [hasBeenRedirectedToDeposit, setHasBeenRedirectedToDeposit] = useState(false) // Nova flag para rastrear redirecionamento único por sessão
 
   
 
@@ -135,8 +136,9 @@ export function RaspouGanhouApp() {
 
 useEffect(() => {
   if (isLoaded) {
-    if (isAuthenticated && user && currentPage === "home" && user.balance === 0) {
+    if (isAuthenticated && user && currentPage === "home" && user.balance === 0 && !hasBeenRedirectedToDeposit) {
       navigateTo("deposit")
+      setHasBeenRedirectedToDeposit(true)
     } else if (!isAuthenticated && !hasDismissedModal) {
       setIsModalOpen(true)
       setModalTab("login")
@@ -144,7 +146,7 @@ useEffect(() => {
       setIsModalOpen(false)
     }
   }
-}, [isAuthenticated, user, currentPage, navigateTo, isLoaded, hasDismissedModal])
+}, [isAuthenticated, user, currentPage, navigateTo, isLoaded, hasDismissedModal, hasBeenRedirectedToDeposit])
 
   const [activeTab, setActiveTab] = useState("destaque")
   const tabs = [
