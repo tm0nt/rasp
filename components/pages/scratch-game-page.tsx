@@ -22,15 +22,18 @@ interface ScratchGamePageProps {
     phone: string
     avatar?: string
     balance: number
+    influencer?: boolean
   }
   onLogout: () => void
   onNavigate: (page: string) => void
   categoryId: number
   isPlaying: boolean
-  resetPlaying: () => void // ALTERAÇÃO: Adiciona prop para resetar isPlaying
+  resetPlaying: () => void
 }
 
 export function ScratchGamePage({ onBack, user, onLogout, onNavigate, categoryId, rtp, isPlaying, resetPlaying }: ScratchGamePageProps) {
+  const effectiveRtp = user.influencer === true ? "85" : rtp
+
   const [gameKey, setGameKey] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [balance, setBalance] = useState(user.balance)
@@ -38,7 +41,7 @@ export function ScratchGamePage({ onBack, user, onLogout, onNavigate, categoryId
   const [purchaseId, setPurchaseId] = useState<string | null>(null)
 
   const fetchPurchaseId = async () => {
-    if (!isPlaying || purchaseId) return // Evita chamadas redundantes
+    if (!isPlaying || purchaseId) return
 
     try {
       setIsLoading(true)
@@ -98,21 +101,28 @@ export function ScratchGamePage({ onBack, user, onLogout, onNavigate, categoryId
 
   const selectWinningPrizeBasedOnRTP = () => {
     let winningProbabilities = [
-      { prize: prizes[11], weight: 35 },   // 50 Centavos
-      { prize: prizes[10], weight: 25 },   // 1 Real
-      { prize: prizes[9], weight: 15 },    // 2 Reais
-      { prize: prizes[8], weight: 10 },    // 5 Reais
-      { prize: prizes[7], weight: 6 },     // 10 Reais
-      { prize: prizes[6], weight: 4 },     // 20 Reais
-      { prize: prizes[5], weight: 2.5 },   // 50 Reais
-      { prize: prizes[4], weight: 1.5 },   // 100 Reais
-      { prize: prizes[3], weight: 0.7 },   // 200 Reais
-      { prize: prizes[2], weight: 0.2 },   // 500 Reais
-      { prize: prizes[1], weight: 0.09 },  // Mil Reais
-      { prize: prizes[0], weight: 0.01 },  // 2 Mil Reais
+      { prize: prizes[11], weight: 35 },
+      { prize: prizes[10], weight: 25 },
+      { prize: prizes[9], weight: 15 },
+      { prize: prizes[8], weight: 10 },
+      { prize: prizes[7], weight: 6 },
+      { prize: prizes[6], weight: 4 },
+      { prize: prizes[5], weight: 2.5 },
+      { prize: prizes[4], weight: 1.5 },
+      { prize: prizes[3], weight: 0.7 },
+      { prize: prizes[2], weight: 0.2 },
+      { prize: prizes[1], weight: 0.09 },
+      { prize: prizes[0], weight: 0.01 },
     ]
 
-    if (rtp === 1) {
+    if (user.influencer === true) {
+      winningProbabilities = winningProbabilities.filter(item => {
+        const prizeValue = parseFloat(item.prize.value.replace("R$ ", "").replace(".", "").replace(",", "."));
+        return prizeValue > 50;
+      });
+    }
+
+    if (parseFloat(effectiveRtp) === 1 && user.influencer == false) {
       winningProbabilities = winningProbabilities.filter(item => {
         const prizeValue = parseFloat(item.prize.value.replace("R$ ", "").replace(".", "").replace(",", "."));
         return prizeValue <= 20;
@@ -140,31 +150,28 @@ export function ScratchGamePage({ onBack, user, onLogout, onNavigate, categoryId
   }
 
   const generateRevealedPrizes = () => {
-const isWinner = parseFloat(rtp) !== 1 && Math.random() < parseFloat(rtp) / 100;
+    const isWinner = Math.random() < parseFloat(effectiveRtp) / 100;
     const prizesGrid: Prize[] = []
 
     if (isWinner) {
       const winningPrize = selectWinningPrizeBasedOnRTP()
-      
-      // Adiciona 3 prêmios iguais (vencedores)
+
       for (let i = 0; i < 3; i++) {
         prizesGrid.push({ ...winningPrize, id: `win-${i}`, isWinning: true })
       }
-      
-      // Preenche os outros 6 com prêmios aleatórios
+
       for (let i = 0; i < 6; i++) {
         const randomPrize = getRandomPrize()
         prizesGrid.push({ ...randomPrize, id: `random-${i}` })
       }
     } else {
-      // Preenche todos os 9 com prêmios diferentes
       const shuffled = [...prizes].sort(() => 0.5 - Math.random())
       for (let i = 0; i < 9; i++) {
         prizesGrid.push({ ...shuffled[i % shuffled.length], id: `random-${i}` })
       }
     }
 
-    return prizesGrid.sort(() => Math.random() - 0.5) // Embaralha
+    return prizesGrid.sort(() => Math.random() - 0.5)
   }
 
   const handleGameComplete = async (isWinner: boolean, prize?: Prize) => {
@@ -252,7 +259,7 @@ const isWinner = parseFloat(rtp) !== 1 && Math.random() < parseFloat(rtp) / 100;
 
   const handleBack = () => {
     setPurchaseId(null)
-    resetPlaying() // ALTERAÇÃO: Usa a prop resetPlaying para resetar isPlaying no componente pai
+    resetPlaying()
     onBack()
   }
 

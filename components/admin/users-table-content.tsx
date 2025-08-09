@@ -8,7 +8,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, Edit, Trash2, Mail, Phone, Calendar, Wallet, Package, Gift, TrendingDown, Gamepad2 } from "lucide-react"
+import { Eye, Edit, Trash2, Mail, Phone, Calendar, Wallet, Package, Gift, TrendingDown, Gamepad2, Gem } from "lucide-react"
 import type { IUser } from "@/types/admin"
 
 interface UsersTableContentProps {
@@ -77,7 +77,7 @@ function UserTableRow({ user, onAction }: UserTableRowProps) {
       <WalletCell balance={user.balance} />
       <ActivityCell user={user} />
       <StatusCell status={user.status} />
-      <ActionsCell userId={user.id} onAction={onAction} />
+      <ActionsCell userId={user.id} onAction={onAction} isInfluencer={user.influencer} />
     </tr>
   )
 }
@@ -138,7 +138,8 @@ function WalletCell({ balance }: { balance: number }) {
     <td className="py-4 px-4">
       <div className="flex items-center gap-2">
         <Wallet className="w-4 h-4 text-green-400" />
-<span className="text-green-400 font-medium">R$ {(balance ?? 0).toFixed(2).replace(".", ",")}</span>      </div>
+        <span className="text-green-400 font-medium">R$ {(balance ?? 0).toFixed(2).replace(".", ",")}</span>
+      </div>
     </td>
   )
 }
@@ -194,20 +195,22 @@ function StatusCell({ status }: { status: string }) {
 interface ActionsCellProps {
   userId: string
   onAction: (action: string, userId: string) => void
+  isInfluencer: boolean
 }
 
-function ActionsCell({ userId, onAction }: ActionsCellProps) {
+function ActionsCell({ userId, onAction, isInfluencer }: ActionsCellProps) {
   const actions = [
     { action: "view", icon: Eye, color: "text-blue-400 hover:bg-blue-500/20" },
     { action: "edit", icon: Edit, color: "text-yellow-400 hover:bg-yellow-500/20" },
+    { action: "influencer", icon: Gem, color: "text-purple-400 hover:bg-purple-500/20", disabled: isInfluencer },
     { action: "delete", icon: Trash2, color: "text-red-400 hover:bg-red-500/20" },
   ]
 
   return (
     <td className="py-4 px-4">
       <div className="flex gap-2">
-        {actions.map(({ action, icon: Icon, color }) => (
-          <Button key={action} size="sm" variant="ghost" onClick={() => onAction(action, userId)} className={color}>
+        {actions.map(({ action, icon: Icon, color, disabled }) => (
+          <Button key={action} size="sm" variant="ghost" onClick={() => !disabled && onAction(action, userId)} className={`${color} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
             <Icon className="w-4 h-4" />
           </Button>
         ))}

@@ -1,7 +1,5 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { X } from "lucide-react"
@@ -421,7 +419,7 @@ if (window.gtag) {
                 <X className="w-6 h-6" />
               </button>
 
-              {/* Form Content */}
+              {/* Modal Content */}
               <div className="animate-in slide-in-from-bottom-4 duration-500 delay-400">
                 {showForgotPassword ? (
                   <ForgotPasswordForm

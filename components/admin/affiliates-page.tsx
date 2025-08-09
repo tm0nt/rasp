@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { UserCheck, DollarSign, TrendingUp, Calendar, Users, Settings, Wallet } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
+import { UserCheck, DollarSign, TrendingUp, Calendar, Users, Settings, Wallet, Eye } from "lucide-react"
+import { useToast } from "@/contexts/toast-context"
 import { Pagination, PaginationContent, PaginationItem, PaginationPrevious, PaginationNext } from "@/components/ui/pagination"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 
 interface Affiliate {
   id: string
@@ -34,11 +35,23 @@ interface AffiliateSettings {
   cpaValue: string
 }
 
+interface AffiliateDetailedStats {
+  referralsToday: number
+  depositsToday: number
+  totalDeposits: number
+  pendingDeposits: number
+  earnings: number
+  withdrawals: number
+}
+
 export function AffiliatesPage() {
-  const { toast } = useToast()
+  const { showToast } = useToast()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [selectedAffiliate, setSelectedAffiliate] = useState<Affiliate | null>(null)
+  const [detailedStats, setDetailedStats] = useState<AffiliateDetailedStats | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
   
   const [affiliates, setAffiliates] = useState<Affiliate[]>([])
   const [stats, setStats] = useState<AffiliateStats>({
@@ -80,18 +93,20 @@ export function AffiliatesPage() {
           setTotalPages(Math.ceil(newStats.totalAffiliates / limit))
           setAffiliateSettings(data.data.settings)
         } else {
-          toast({
+          showToast({
+            type: "error",
             title: "Erro",
-            description: "Falha ao carregar afiliados",
-            variant: "destructive",
+            message: "Falha ao carregar afiliados",
+            duration: 5000,
           })
         }
       } catch (error) {
         console.error("Error loading affiliates:", error)
-        toast({
+        showToast({
+          type: "error",
           title: "Erro",
-          description: "Falha ao carregar afiliados",
-          variant: "destructive",
+          message: "Falha ao carregar afiliados",
+          duration: 5000,
         })
       } finally {
         setIsLoading(false)
@@ -99,8 +114,7 @@ export function AffiliatesPage() {
     }
 
     loadData()
-  }, [currentPage, toast])
-
+  }, [currentPage, showToast])
 
   const handleUpdateSettings = async () => {
     setIsSaving(true)
@@ -117,24 +131,28 @@ export function AffiliatesPage() {
       const result = await response.json()
       
       if (result.success) {
-        toast({
+        showToast({
+          type: "success",
           title: "Sucesso",
-          description: result.message,
+          message: result.message,
+          duration: 3000,
         })
         setShowSettings(false)
       } else {
-        toast({
+        showToast({
+          type: "error",
           title: "Erro",
-          description: result.error || "Falha ao atualizar configurações",
-          variant: "destructive",
+          message: result.error || "Falha ao atualizar configurações",
+          duration: 5000,
         })
       }
     } catch (error) {
       console.error("Error updating settings:", error)
-      toast({
+      showToast({
+        type: "error",
         title: "Erro",
-        description: "Falha ao atualizar configurações",
-        variant: "destructive",
+        message: "Falha ao atualizar configurações",
+        duration: 5000,
       })
     } finally {
       setIsSaving(false)
@@ -155,9 +173,11 @@ export function AffiliatesPage() {
       const result = await response.json()
       
       if (result.success) {
-        toast({
+        showToast({
+          type: "success",
           title: "Sucesso",
-          description: result.message,
+          message: result.message,
+          duration: 3000,
         })
         // Recarregar dados para atualizar a lista
         const refreshResponse = await fetch(`/api/admin/affiliates?page=${currentPage}&limit=${limit}`)
@@ -178,19 +198,50 @@ export function AffiliatesPage() {
           setTotalPages(Math.ceil(newStats.totalAffiliates / limit))
         }
       } else {
-        toast({
+        showToast({
+          type: "error",
           title: "Erro",
-          description: result.error || "Falha ao processar pagamento",
-          variant: "destructive",
+          message: result.error || "Falha ao processar pagamento",
+          duration: 5000,
         })
       }
     } catch (error) {
       console.error("Error paying affiliate:", error)
-      toast({
+      showToast({
+        type: "error",
         title: "Erro",
-        description: "Falha ao processar pagamento",
-        variant: "destructive",
+        message: "Falha ao processar pagamento",
+        duration: 5000,
       })
+    }
+  }
+
+  const handleViewDetails = async (affiliate: Affiliate) => {
+    setSelectedAffiliate(affiliate)
+    setIsModalOpen(true)
+    try {
+      const response = await fetch(`/api/admin/affiliates?affiliateId=${affiliate.id}`)
+      const data = await response.json()
+      if (data.success) {
+        setDetailedStats(data.data.detailedStats)
+      } else {
+        showToast({
+          type: "error",
+          title: "Erro",
+          message: "Falha ao carregar detalhes do afiliado",
+          duration: 5000,
+        })
+        setIsModalOpen(false)
+      }
+    } catch (error) {
+      console.error("Error loading affiliate details:", error)
+      showToast({
+        type: "error",
+        title: "Erro",
+        message: "Falha ao carregar detalhes do afiliado",
+        duration: 5000,
+      })
+      setIsModalOpen(false)
     }
   }
 
@@ -386,14 +437,22 @@ export function AffiliatesPage() {
                       <Badge className="bg-green-500/20 text-green-400 border-green-500/30">{affiliate.status}</Badge>
                     </td>
                     <td className="py-4 px-4">
-                      <Button
-                        size="sm"
-                        onClick={() => handlePayAffiliate(affiliate.id)}
-                        className="bg-green-600 hover:bg-green-700 text-white"
-                        disabled={affiliate.pendingEarned === 0}
-                      >
-                        Pagar
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handlePayAffiliate(affiliate.id)}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          Pagar
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleViewDetails(affiliate)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -423,6 +482,48 @@ export function AffiliatesPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Modal de Detalhes */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="bg-gray-800 border-gray-700 max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-white">Detalhes do Afiliado: {selectedAffiliate?.name}</DialogTitle>
+          </DialogHeader>
+          {detailedStats ? (
+            <div className="grid grid-cols-2 gap-4 py-4">
+              <div className="space-y-1">
+                <p className="text-gray-400 text-sm">Indicados Hoje</p>
+                <p className="text-white font-medium">{detailedStats.referralsToday}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-gray-400 text-sm">Depósitos Hoje</p>
+                <p className="text-white font-medium">R$ {(detailedStats.depositsToday || 0).toFixed(2).replace(".", ",")}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-gray-400 text-sm">Depósitos Totais</p>
+                <p className="text-white font-medium">R$ {(detailedStats.totalDeposits || 0).toFixed(2).replace(".", ",")}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-gray-400 text-sm">Depósitos Pendentes</p>
+                <p className="text-white font-medium">R$ {(detailedStats.pendingDeposits || 0).toFixed(2).replace(".", ",")}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-gray-400 text-sm">Ganhos</p>
+                <p className="text-white font-medium">R$ {(detailedStats.earnings || 0).toFixed(2).replace(".", ",")}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-gray-400 text-sm">Saques</p>
+                <p className="text-white font-medium">R$ {(detailedStats.withdrawals || 0).toFixed(2).replace(".", ",")}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="py-4 text-center text-gray-400">Carregando detalhes...</div>
+          )}
+          <DialogClose asChild>
+            <Button className="bg-gray-700 hover:bg-gray-600 text-white">Fechar</Button>
+          </DialogClose>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

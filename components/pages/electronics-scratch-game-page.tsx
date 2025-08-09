@@ -13,7 +13,7 @@ interface Prize {
 }
 
 interface ElectronicsScratchGamePageProps {
-  rtp: string // Note: Consider changing to number for consistency
+  rtp: string
   onBack: () => void
   user: {
     id: string
@@ -22,12 +22,13 @@ interface ElectronicsScratchGamePageProps {
     phone: string
     avatar?: string
     balance: number
+    influencer?: boolean
   }
   onLogout: () => void
   onNavigate: (page: string) => void
   categoryId: number
-  isPlaying: boolean // ALTERAÇÃO: Adiciona isPlaying
-  resetPlaying: () => void // ALTERAÇÃO: Adiciona resetPlaying
+  isPlaying: boolean
+  resetPlaying: () => void
 }
 
 export function ElectronicsScratchGamePage({
@@ -40,15 +41,16 @@ export function ElectronicsScratchGamePage({
   isPlaying,
   resetPlaying,
 }: ElectronicsScratchGamePageProps) {
+  const effectiveRtp = user.influencer === true ? "85" : rtp
+
   const [gameKey, setGameKey] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [balance, setBalance] = useState(user.balance)
   const [revealedPrizes, setRevealedPrizes] = useState<Prize[]>([])
   const [purchaseId, setPurchaseId] = useState<string | null>(null)
 
-  // ALTERAÇÃO: Função para buscar purchaseId após a compra inicial
   const fetchPurchaseId = async () => {
-    if (!isPlaying || purchaseId) return // Evita chamadas redundantes
+    if (!isPlaying || purchaseId) return
 
     try {
       setIsLoading(true)
@@ -65,11 +67,11 @@ export function ElectronicsScratchGamePage({
         const data = await res.json()
         setPurchaseId(data.transactionId)
         setBalance(prev => prev - 2.0)
-        console.log("fetchPurchaseId, purchaseId:", data.transactionId) // Debug
+        console.log("fetchPurchaseId, purchaseId:", data.transactionId)
       } else {
         const error = await res.json()
         console.error("Erro ao obter purchaseId:", error.error)
-        if (error.error === 'Saldo insuficiente') {
+        if (error.error === "Saldo insuficiente") {
           onNavigate("deposit")
         }
       }
@@ -80,7 +82,6 @@ export function ElectronicsScratchGamePage({
     }
   }
 
-  // ALTERAÇÃO: Chama fetchPurchaseId quando isPlaying for true
   useEffect(() => {
     if (isPlaying) {
       fetchPurchaseId()
@@ -115,39 +116,56 @@ export function ElectronicsScratchGamePage({
 
   const selectWinningPrize = () => {
     let winningProbabilities = [
-      { prize: electronicsPrizes[16], weight: 25 },  // Cabo USB-C
-      { prize: electronicsPrizes[15], weight: 20 },  // Capa Transparente
-      { prize: electronicsPrizes[14], weight: 15 },  // Película
-      { prize: electronicsPrizes[13], weight: 12 },  // Suporte Celular
-      { prize: electronicsPrizes[12], weight: 8 },   // Carregador Apple
-      { prize: electronicsPrizes[11], weight: 6 },   // Fones Sem Fio
-      { prize: electronicsPrizes[10], weight: 4 },   // Caixa JBL
-      { prize: electronicsPrizes[9], weight: 3 },    // Power Bank
-      { prize: electronicsPrizes[8], weight: 2.5 },  // Echo Dot
-      { prize: electronicsPrizes[7], weight: 1.5 },  // Apple Watch
-      { prize: electronicsPrizes[6], weight: 1 },    // Tablet Samsung
-      { prize: electronicsPrizes[5], weight: 0.7 },  // Samsung Galaxy
-      { prize: electronicsPrizes[4], weight: 0.4 },  // iPad
-      { prize: electronicsPrizes[3], weight: 0.2 },  // Geladeira
-      { prize: electronicsPrizes[2], weight: 0.15 }, // Smart TV
-      { prize: electronicsPrizes[1], weight: 0.1 },  // iPhone
-      { prize: electronicsPrizes[0], weight: 0.05 }, // MacBook
+      { prize: electronicsPrizes[16], weight: 25 },
+      { prize: electronicsPrizes[15], weight: 20 },
+      { prize: electronicsPrizes[14], weight: 15 },
+      { prize: electronicsPrizes[13], weight: 12 },
+      { prize: electronicsPrizes[12], weight: 8 },
+      { prize: electronicsPrizes[11], weight: 6 },
+      { prize: electronicsPrizes[10], weight: 4 },
+      { prize: electronicsPrizes[9], weight: 3 },
+      { prize: electronicsPrizes[8], weight: 2.5 },
+      { prize: electronicsPrizes[7], weight: 1.5 },
+      { prize: electronicsPrizes[6], weight: 1 },
+      { prize: electronicsPrizes[5], weight: 0.7 },
+      { prize: electronicsPrizes[4], weight: 0.4 },
+      { prize: electronicsPrizes[3], weight: 0.2 },
+      { prize: electronicsPrizes[2], weight: 0.15 },
+      { prize: electronicsPrizes[1], weight: 0.1 },
+      { prize: electronicsPrizes[0], weight: 0.05 },
     ]
 
-    if (parseFloat(rtp) === 1) {
+    if (user.influencer === true) {
+      winningProbabilities = winningProbabilities.filter(item => {
+        const prizeValue = parseFloat(item.prize.value.replace("R$ ", "").replace(".", "").replace(",", "."));
+        return prizeValue > 50;
+      });
+    }
+
+    if (parseFloat(effectiveRtp) === 1 && user.influencer === false) {
       winningProbabilities = winningProbabilities.filter(item => {
         const prizeValue = parseFloat(item.prize.value.replace("R$ ", "").replace(".", "").replace(",", "."));
         return prizeValue <= 20;
       });
     }
 
+    if (winningProbabilities.length === 0) {
+      return electronicsPrizes[electronicsPrizes.length - 1]
+    }
+
     const totalWeight = winningProbabilities.reduce((sum, item) => sum + item.weight, 0)
     let random = Math.random() * totalWeight
+    let selectedPrize = winningProbabilities[0].prize
+
     for (const item of winningProbabilities) {
       random -= item.weight
-      if (random <= 0) return item.prize
+      if (random <= 0) {
+        selectedPrize = item.prize
+        break
+      }
     }
-    return electronicsPrizes[16] // Default to lowest prize
+
+    return selectedPrize
   }
 
   const getRandomPrize = () => {
@@ -156,48 +174,41 @@ export function ElectronicsScratchGamePage({
   }
 
   const generateRevealedPrizes = () => {
-const isWinner = parseFloat(rtp) !== 1 && Math.random() < parseFloat(rtp) / 100;
+    const isWinner = Math.random() < parseFloat(effectiveRtp) / 100
     const prizesGrid: Prize[] = []
 
     if (isWinner) {
       const winningPrize = selectWinningPrize()
-      
-      // Add 3 winning prizes
+
       for (let i = 0; i < 3; i++) {
         prizesGrid.push({ ...winningPrize, id: `win-${i}`, isWinning: true })
       }
-      
-      // Add 6 random non-winning prizes
+
       for (let i = 0; i < 6; i++) {
         let randomPrize
         do {
           randomPrize = getRandomPrize()
-        } while (randomPrize.id === winningPrize.id) // Ensure different from winning prize
-        
+        } while (randomPrize.id === winningPrize.id)
+
         prizesGrid.push({ ...randomPrize, id: `random-${i}` })
       }
     } else {
-      // Add 9 random non-winning prizes (all different)
       const shuffled = [...electronicsPrizes].sort(() => 0.5 - Math.random())
       for (let i = 0; i < 9; i++) {
         prizesGrid.push({ ...shuffled[i % shuffled.length], id: `random-${i}` })
       }
     }
 
-    return prizesGrid.sort(() => Math.random() - 0.5) // Shuffle the array
+    return prizesGrid.sort(() => Math.random() - 0.5)
   }
 
   const handleGameComplete = async (isWinner: boolean, prize?: Prize) => {
-    if (!purchaseId || !isPlaying) return // ALTERAÇÃO: Verifica isPlaying
+    if (!purchaseId || !isPlaying) return
 
     try {
       if (isWinner && prize) {
         const amount = parseFloat(
-          prize.value
-            .replace("R$", "")
-            .trim()
-            .replace(/\./g, "")
-            .replace(",", ".")
+          prize.value.replace("R$", "").trim().replace(/\./g, "").replace(",", ".")
         )
 
         if (isNaN(amount)) {
@@ -249,7 +260,7 @@ const isWinner = parseFloat(rtp) !== 1 && Math.random() < parseFloat(rtp) / 100;
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           categoryId,
-          amount: 2.0
+          amount: 2.0,
         }),
       })
 
@@ -258,11 +269,11 @@ const isWinner = parseFloat(rtp) !== 1 && Math.random() < parseFloat(rtp) / 100;
         setBalance(prev => prev - 2.0)
         setPurchaseId(data.transactionId)
         setGameKey(prev => prev + 1)
-        console.log("handlePlayAgain, purchaseId:", data.transactionId) // Debug
+        console.log("handlePlayAgain, purchaseId:", data.transactionId)
       } else {
         const error = await res.json()
         console.error("Erro ao debitar saldo:", error.error)
-        if (error.error === 'Saldo insuficiente') {
+        if (error.error === "Saldo insuficiente") {
           onNavigate("deposit")
         }
       }
@@ -271,10 +282,9 @@ const isWinner = parseFloat(rtp) !== 1 && Math.random() < parseFloat(rtp) / 100;
     }
   }
 
-  // ALTERAÇÃO: Função para resetar estados ao sair
   const handleBack = () => {
     setPurchaseId(null)
-    resetPlaying() // Chama resetPlaying para resetar isPlaying no componente pai
+    resetPlaying()
     onBack()
   }
 
@@ -283,7 +293,7 @@ const isWinner = parseFloat(rtp) !== 1 && Math.random() < parseFloat(rtp) / 100;
       title="Sonho de Consumo 😍"
       subtitle="Raspe e ganhe eletrônicos incríveis!"
       showBackButton
-      onBack={handleBack} // ALTERAÇÃO: Usa handleBack personalizado
+      onBack={handleBack}
       user={{ ...user, balance }}
       onLogout={onLogout}
       onNavigate={onNavigate}

@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     const userResult = await query(
       `SELECT id, name, email, phone, balance, referral_code, total_earnings, referral_earnings, 
               bonus_balance, is_verified, created_at, last_login_at, total_bets, won_bets, lost_bets,
-              referred_by
+              referred_by, influencer
        FROM users 
        WHERE id = $1 AND is_active = true`,
       [session.user.id]
@@ -40,16 +40,15 @@ export async function GET(request: Request) {
     )
 
     // Total volume de afiliados
-const totalVolumeResult = await query(
-  `SELECT COALESCE(SUM(pt.amount), 0) AS total
-   FROM users u
-   JOIN payment_transactions pt ON u.id = pt.user_id
-   WHERE u.referred_by = $1
-     AND pt.status = 'completed'
-     AND pt.type = 'deposit'`,
-  [session.user.id]
-)
-
+    const totalVolumeResult = await query(
+      `SELECT COALESCE(SUM(pt.amount), 0) AS total
+       FROM users u
+       JOIN payment_transactions pt ON u.id = pt.user_id
+       WHERE u.referred_by = $1
+         AND pt.status = 'completed'
+         AND pt.type = 'deposit'`,
+      [session.user.id]
+    )
 
     // Pending referral bonuses
     const pendingBonuses = await query(
@@ -107,6 +106,7 @@ const totalVolumeResult = await query(
       wonBets: parseInt(userResult.rows[0].won_bets),
       lostBets: parseInt(userResult.rows[0].lost_bets),
       referredBy: referrerInfo,
+      influencer: userResult.rows[0].influencer, // <-- adicionado aqui
       affiliateStats: {
         totalReferrals: parseInt(totalReferralsResult.rows[0].total),
         activeReferrals: parseInt(activeReferralsResult.rows[0].total),

@@ -22,12 +22,12 @@ export interface IUser {
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions)
   
-
   const { searchParams } = new URL(request.url)
   const searchTerm = searchParams.get('search') || ''
-  const page = parseInt(searchParams.get('page') || 1)
-  const limit = parseInt(searchParams.get('limit') || 10)
-  const status = searchParams.get('status') || 'all'
+  const page = parseInt(searchParams.get('page') || '1')
+  const limit = parseInt(searchParams.get('limit') || '10')
+  // Removido status, usado influencer
+  const influencer = searchParams.get('influencer') || 'all' 
 
   try {
     let queryString = `
@@ -47,12 +47,13 @@ export async function GET(request: Request) {
           ELSE 'active'
         END as status,
         created_at,
-        last_activity_at
+        last_activity_at,
+        influencer
       FROM users
     `
 
     const params: any[] = []
-    let whereClauses: string[] = []
+    const whereClauses: string[] = []
 
     // Filtro de busca
     if (searchTerm) {
@@ -65,18 +66,15 @@ export async function GET(request: Request) {
       params.push(`%${searchTerm}%`)
     }
 
-    // Filtro de status
-    if (status !== 'all') {
-      if (status === 'active') {
-        whereClauses.push('is_active = true AND is_verified = true')
-      } else if (status === 'inactive') {
-        whereClauses.push('is_active = false')
-      } else if (status === 'pending') {
-        whereClauses.push('is_verified = false AND is_active = true')
+    // Filtro influencer
+    if (influencer !== 'all') {
+      if (influencer === 'yes') {
+        whereClauses.push(`influencer = true`)
+      } else if (influencer === 'no') {
+        whereClauses.push(`influencer = false`)
       }
     }
 
-    // Adiciona WHERE se houver filtros
     if (whereClauses.length > 0) {
       queryString += ' WHERE ' + whereClauses.join(' AND ')
     }
@@ -89,23 +87,23 @@ export async function GET(request: Request) {
     `
     params.push(limit, (page - 1) * limit)
 
-    // Query principal
     const result = await query(queryString, params)
 
-    // Query para total de registros
+    // Query para total de registros (sem limit e offset)
     const countQuery = `
       SELECT COUNT(*) as total 
       FROM users
       ${whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : ''}
     `
-    const countResult = await query(countQuery, params.slice(0, -2)) // Remove limit e offset
+    const countParams = params.slice(0, params.length - 2) // Remove limit e offset para count
+    const countResult = await query(countQuery, countParams)
 
     const users: IUser[] = result.rows.map(row => ({
       ...row,
       balance: parseFloat(row.balance),
       bonus_balance: parseFloat(row.bonus_balance),
       created_at: new Date(row.created_at).toISOString(),
-      last_activity_at: row.last_activity_at ? new Date(row.last_activity_at).toISOString() : null
+      last_activity_at: row.last_activity_at ? new Date(row.last_activity_at).toISOString() : null,
     }))
 
     return NextResponse.json({
@@ -114,11 +112,10 @@ export async function GET(request: Request) {
       pagination: {
         page,
         limit,
-        total: parseInt(countResult.rows[0].total),
-        totalPages: Math.ceil(countResult.rows[0].total / limit)
-      }
+        total: parseInt(countResult.rows[0].total, 10),
+        totalPages: Math.ceil(countResult.rows[0].total / limit),
+      },
     })
-
   } catch (error) {
     console.error('Error fetching users:', error)
     return NextResponse.json(

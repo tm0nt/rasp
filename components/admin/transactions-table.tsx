@@ -190,27 +190,6 @@ export function TransactionsTable() {
     )
   }
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-700 rounded w-1/4 mb-2"></div>
-          <div className="h-4 bg-gray-700 rounded w-1/3"></div>
-        </div>
-
-        <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="animate-pulse space-y-4">
-              {Array.from({ length: 5 }).map((_, index) => (
-                <div key={index} className="h-16 bg-gray-700 rounded"></div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-6">
       <div>
@@ -270,113 +249,121 @@ export function TransactionsTable() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-700">
-                  <th className="text-left py-3 px-4 text-gray-300 font-medium">ID</th>
-                  <th className="text-left py-3 px-4 text-gray-300 font-medium">Usuário</th>
-                  <th className="text-left py-3 px-4 text-gray-300 font-medium">Tipo</th>
-                  <th className="text-left py-3 px-4 text-gray-300 font-medium">Valor</th>
-                  <th className="text-left py-3 px-4 text-gray-300 font-medium">Método</th>
-                  <th className="text-left py-3 px-4 text-gray-300 font-medium">Status</th>
-                  <th className="text-left py-3 px-4 text-gray-300 font-medium">Data</th>
-                  <th className="text-left py-3 px-4 text-gray-300 font-medium">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.map((transaction) => (
-                  <tr key={transaction.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
-                    <td className="py-4 px-4">
-                      <div>
-                        <p className="text-white font-medium">{transaction.id}</p>
-                        <p className="text-gray-400 text-xs">{transaction.reference}</p>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-gray-400" />
-                        <span className="text-white">{transaction.user_name}</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-2">
-                        {getTypeIcon(transaction.type)}
-                        <span className="text-white capitalize">
-                          {transaction.type === "deposit" ? "Depósito" : 
-                           transaction.type === "withdrawal" ? "Saque" :
-                           transaction.type === "bet" ? "Aposta" :
-                           transaction.type === "win" ? "Prêmio" : "Bônus"}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-green-400" />
-                        <span className={`font-medium ${
-                          transaction.type === 'deposit' || transaction.type === 'win' || transaction.type === 'bonus' 
-                            ? 'text-green-400' 
-                            : 'text-red-400'
-                        }`}>
-                          R$ {transaction.amount.toFixed(2).replace(".", ",")}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className="text-gray-300">{transaction.payment_method || '-'}</span>
-                    </td>
-                    <td className="py-4 px-4">{getStatusBadge(transaction.status)}</td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-300 text-sm">
-                          {new Date(transaction.created_at).toLocaleDateString("pt-BR", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleViewTransaction(transaction)}
-                          className="text-blue-400 hover:bg-blue-500/20"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        {transaction.type === 'withdrawal' && transaction.status === 'pending' && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleApproveTransaction(transaction)}
-                              className="text-green-400 hover:bg-green-500/20"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleRejectTransaction(transaction)}
-                              className="text-red-400 hover:bg-red-500/20"
-                            >
-                              <XCircle className="w-4 h-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </td>
+          {isLoading ? (
+            <div className="animate-pulse space-y-4">
+              {Array.from({ length: 10 }).map((_, index) => (
+                <div key={index} className="h-16 bg-gray-700 rounded"></div>
+              ))}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-700">
+                    <th className="text-left py-3 px-4 text-gray-300 font-medium">ID</th>
+                    <th className="text-left py-3 px-4 text-gray-300 font-medium">Usuário</th>
+                    <th className="text-left py-3 px-4 text-gray-300 font-medium">Tipo</th>
+                    <th className="text-left py-3 px-4 text-gray-300 font-medium">Valor</th>
+                    <th className="text-left py-3 px-4 text-gray-300 font-medium">Método</th>
+                    <th className="text-left py-3 px-4 text-gray-300 font-medium">Status</th>
+                    <th className="text-left py-3 px-4 text-gray-300 font-medium">Data</th>
+                    <th className="text-left py-3 px-4 text-gray-300 font-medium">Ações</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {transactions.map((transaction) => (
+                    <tr key={transaction.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
+                      <td className="py-4 px-4">
+                        <div>
+                          <p className="text-white font-medium">{transaction.id}</p>
+                          <p className="text-gray-400 text-xs">{transaction.reference}</p>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-gray-400" />
+                          <span className="text-white">{transaction.user_name}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-2">
+                          {getTypeIcon(transaction.type)}
+                          <span className="text-white capitalize">
+                            {transaction.type === "deposit" ? "Depósito" : 
+                             transaction.type === "withdrawal" ? "Saque" :
+                             transaction.type === "bet" ? "Aposta" :
+                             transaction.type === "win" ? "Prêmio" : "Bônus"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="w-4 h-4 text-green-400" />
+                          <span className={`font-medium ${
+                            transaction.type === 'deposit' || transaction.type === 'win' || transaction.type === 'bonus' 
+                              ? 'text-green-400' 
+                              : 'text-red-400'
+                          }`}>
+                            R$ {transaction.amount.toFixed(2).replace(".", ",")}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className="text-gray-300">{transaction.payment_method || '-'}</span>
+                      </td>
+                      <td className="py-4 px-4">{getStatusBadge(transaction.status)}</td>
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                          <span className="text-gray-300 text-sm">
+                            {new Date(transaction.created_at).toLocaleDateString("pt-BR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleViewTransaction(transaction)}
+                            className="text-blue-400 hover:bg-blue-500/20"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          {transaction.type === 'withdrawal' && transaction.status === 'pending' && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleApproveTransaction(transaction)}
+                                className="text-green-400 hover:bg-green-500/20"
+                              >
+                                <CheckCircle className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleRejectTransaction(transaction)}
+                                className="text-red-400 hover:bg-red-500/20"
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 

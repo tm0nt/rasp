@@ -10,15 +10,15 @@ import { UserEditModal } from "./user-edit-modal"
 import { ConfirmationModal } from "@/components/modals/confirmation-modal"
 import { toast } from "@/components/ui/use-toast"
 import type { IUser } from "@/types/admin"
-import { PowerOff, Trash2 } from "lucide-react"
+import { PowerOff, Trash2, Gem } from "lucide-react"
 
 export function UsersTable() {
   const [users, setUsers] = useState<IUser[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
-  const [filterStatus, setFilterStatus] = useState("all")
+  const [filterInfluencer, setFilterInfluencer] = useState("all")
   const [selectedUser, setSelectedUser] = useState<IUser | null>(null)
-  const [modalType, setModalType] = useState<"view" | "edit" | "deactivate" | "delete" | null>(null)
+  const [modalType, setModalType] = useState<"view" | "edit" | "deactivate" | "delete" | "influencer" | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -27,18 +27,18 @@ export function UsersTable() {
 
   useEffect(() => {
     loadUsers()
-  }, [currentPage, searchTerm, filterStatus])
+  }, [currentPage, searchTerm, filterInfluencer]) // <-- atualizado aqui, remove filterStatus
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, filterStatus])
+  }, [searchTerm, filterInfluencer]) // <-- atualizado aqui, remove filterStatus
 
   const loadUsers = async (): Promise<void> => {
     try {
       setIsLoading(true)
       const params = new URLSearchParams({
         search: searchTerm,
-        status: filterStatus,
+        influencer: filterInfluencer,   // <-- usa influencer no fetch
         page: currentPage.toString(),
         limit: limit.toString(),
       })
@@ -69,7 +69,7 @@ export function UsersTable() {
     if (!user) return
 
     setSelectedUser(user)
-    setModalType(action as "view" | "edit" | "deactivate" | "delete")
+    setModalType(action as "view" | "edit" | "deactivate" | "delete" | "influencer")
   }
 
   const handleEditSubmit = async (updatedUser: Partial<IUser>) => {
@@ -166,25 +166,64 @@ export function UsersTable() {
     }
   }
 
-  if (isLoading) {
-    return <UsersTableLoadingState />
+  const handleInfluencerConfirm = async () => {
+    if (!selectedUser) return
+
+    try {
+      setIsProcessing(true)
+      const response = await fetch(`/api/admin/users/${selectedUser.id}/influencer`, {
+        method: 'PATCH'
+      })
+
+      if (!response.ok) throw new Error('Failed to make user influencer')
+
+      toast({
+        title: "Sucesso",
+        description: "Usuário transformado em influencer com sucesso",
+      })
+
+      setModalType(null)
+      await loadUsers()
+    } catch (error) {
+      console.error("Erro ao transformar em influencer:", error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível transformar o usuário em influencer",
+        variant: "destructive"
+      })
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   return (
     <div className="space-y-6">
       <UsersTableHeader />
 
-      <UsersTableFilters
-        searchTerm={searchTerm}
-        filterStatus={filterStatus}
-        onSearchChange={setSearchTerm}
-        onStatusChange={setFilterStatus}
-      />
+<UsersTableFilters
+  searchTerm={searchTerm}
+  filterInfluencer={filterInfluencer}
+  onSearchChange={setSearchTerm}
+  onInfluencerChange={setFilterInfluencer}
+/>
 
-      <UsersTableContent 
-        users={users} 
-        onUserAction={handleUserAction} 
-      />
+
+      {isLoading ? (
+        <Card className="bg-gray-800 border-gray-700">
+          <CardContent className="p-6">
+            <div className="animate-pulse space-y-4">
+              {Array.from({ length: 10 }).map((_, index) => (
+                <div key={index} className="h-16 bg-gray-700 rounded"></div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <UsersTableContent 
+          users={users} 
+          onUserAction={handleUserAction} 
+        />
+      )}
 
       {!isLoading && totalPages > 1 && (
         <Pagination>
@@ -250,6 +289,19 @@ export function UsersTable() {
           isLoading={isProcessing}
         />
       )}
+
+      {modalType === "influencer" && selectedUser && (
+        <ConfirmationModal
+          title="Transformar em Influencer"
+          description={`Tem certeza que deseja transformar o usuário ${selectedUser.name} em influencer?`}
+          confirmText="Transformar"
+          variant="default"
+          icon={<Gem className="w-5 h-5" />}
+          onConfirm={handleInfluencerConfirm}
+          onCancel={() => setModalType(null)}
+          isLoading={isProcessing}
+        />
+      )}
     </div>
   )
 }
@@ -259,27 +311,6 @@ function UsersTableHeader() {
     <div>
       <h1 className="text-2xl font-bold text-white mb-2">Usuários</h1>
       <p className="text-gray-400">Gerencie todos os usuários do sistema</p>
-    </div>
-  )
-}
-
-function UsersTableLoadingState() {
-  return (
-    <div className="space-y-6">
-      <div className="animate-pulse">
-        <div className="h-8 bg-gray-700 rounded w-1/4 mb-2"></div>
-        <div className="h-4 bg-gray-700 rounded w-1/3"></div>
-      </div>
-
-      <Card className="bg-gray-800 border-gray-700">
-        <CardContent className="p-6">
-          <div className="animate-pulse space-y-4">
-            {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="h-16 bg-gray-700 rounded"></div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }

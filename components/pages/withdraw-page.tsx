@@ -22,9 +22,10 @@ interface WithdrawPageProps {
   }
   onLogout: () => void
   onNavigate: (page: string, params?: any) => void
+  minWithdrawal: number
 }
 
-export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPageProps) {
+export function WithdrawPage({ onBack, user, onLogout, onNavigate, minWithdrawal }: WithdrawPageProps) {
   const [withdrawAmount, setWithdrawAmount] = useState("")
   const [pixKey, setPixKey] = useState("")
   const [cpf, setCpf] = useState("")
@@ -33,7 +34,6 @@ export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPag
   const [selectedWallet, setSelectedWallet] = useState<"balance" | "referral">("balance")
   const { showToast } = useToast()
 
-  const minWithdraw = 10
   const availableAmount = selectedWallet === "balance" ? user.balance : user.referralEarnings
   const maxWithdraw = Math.min(availableAmount, 5000)
 
@@ -118,7 +118,7 @@ export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPag
     const amount = parseCurrency(withdrawAmount)
     const withdrawType = selectedWallet
 
-    if (!amount || amount < minWithdraw || amount > maxWithdraw || !pixKey || !cpf) {
+    if (!amount || amount < minWithdrawal || amount > maxWithdraw || !pixKey || !cpf) {
       showToast({
         type: "error",
         title: "❌ Dados inválidos",
@@ -250,7 +250,7 @@ export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPag
                 className="bg-gray-800 border-gray-700 text-white"
               />
               <div className="text-sm text-gray-400 mt-1 flex justify-between">
-                <span>Mínimo: R$ {minWithdraw.toFixed(2)}</span>
+                <span>Mínimo: R$ {minWithdrawal.toFixed(2)}</span>
                 <span>Máximo: R$ {maxWithdraw.toFixed(2)}</span>
               </div>
             </div>
@@ -311,7 +311,7 @@ export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPag
               onClick={handleWithdraw}
               disabled={
                 !withdrawAmount ||
-                parseCurrency(withdrawAmount) < minWithdraw ||
+                parseCurrency(withdrawAmount) < minWithdrawal ||
                 parseCurrency(withdrawAmount) > maxWithdraw ||
                 !pixKey ||
                 !cpf ||
@@ -343,7 +343,7 @@ export function WithdrawPage({ onBack, user, onLogout, onNavigate }: WithdrawPag
             </CardTitle>
           </CardHeader>
           <CardContent className="text-gray-300 space-y-2 text-sm">
-            <p>• Saque mínimo: R$ {minWithdraw.toFixed(2)}</p>
+            <p>• Saque mínimo: R$ {minWithdrawal.toFixed(2)}</p>
             <p>• Processamento: até 24 horas em dias úteis</p>
             <p>• A chave PIX deve estar no seu nome (CPF)</p>
             <p>• Não cobramos taxas para saques</p>

@@ -11,9 +11,9 @@ import { Search } from "lucide-react"
 
 interface UsersTableFiltersProps {
   searchTerm: string
-  filterStatus: string
+  filterInfluencer: string
   onSearchChange: (term: string) => void
-  onStatusChange: (status: string) => void
+  onInfluencerChange: (value: string) => void
 }
 
 /**
@@ -21,9 +21,9 @@ interface UsersTableFiltersProps {
  */
 export function UsersTableFilters({
   searchTerm,
-  filterStatus,
+  filterInfluencer,
   onSearchChange,
-  onStatusChange,
+  onInfluencerChange,
 }: UsersTableFiltersProps) {
   return (
     <Card className="bg-gray-800 border-gray-700">
@@ -33,7 +33,7 @@ export function UsersTableFilters({
       <CardContent>
         <div className="flex flex-col sm:flex-row gap-4">
           <SearchInput value={searchTerm} onChange={onSearchChange} placeholder="Buscar por nome ou email..." />
-          <StatusFilter value={filterStatus} onChange={onStatusChange} />
+          <InfluencerFilter value={filterInfluencer} onChange={onInfluencerChange} />
         </div>
       </CardContent>
     </Card>
@@ -64,18 +64,18 @@ function SearchInput({ value, onChange, placeholder }: SearchInputProps) {
 }
 
 /**
- * Componente para filtro de status
+ * Componente para filtro de influencer
  */
-interface StatusFilterProps {
+interface InfluencerFilterProps {
   value: string
   onChange: (value: string) => void
 }
 
-function StatusFilter({ value, onChange }: StatusFilterProps) {
-  const statusOptions = [
-    { value: "all", label: "Todos os Status" },
-    { value: "ativo", label: "Ativo" },
-    { value: "inativo", label: "Inativo" },
+function InfluencerFilter({ value, onChange }: InfluencerFilterProps) {
+  const influencerOptions = [
+    { value: "all", label: "Todos" },
+    { value: "yes", label: "Apenas Influencer" },
+    { value: "no", label: "Sem Influencer" },
   ]
 
   return (
@@ -84,7 +84,7 @@ function StatusFilter({ value, onChange }: StatusFilterProps) {
       onChange={(e) => onChange(e.target.value)}
       className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
     >
-      {statusOptions.map((option) => (
+      {influencerOptions.map((option) => (
         <option key={option.value} value={option.value}>
           {option.label}
         </option>

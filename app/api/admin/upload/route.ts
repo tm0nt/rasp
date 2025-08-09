@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     }
 
     // Verificar tipo de upload permitido
-    if (!['logo', 'favicon'].includes(type)) {
+    if (!['logo', 'favicon', 'banner'].includes(type)) {
       return NextResponse.json(
         { error: 'Tipo de upload inválido' },
         { status: 400 }
@@ -71,7 +71,14 @@ export async function POST(request: Request) {
     const fileUrl = `/images/${filename}`
 
     // Atualizar no banco de dados
-    const settingKey = type === 'logo' ? 'site_logo' : 'site_favicon'
+    let settingKey: string;
+    if (type === 'logo') {
+      settingKey = 'site_logo';
+    } else if (type === 'favicon') {
+      settingKey = 'site_favicon';
+    } else {
+      settingKey = 'site_banner';
+    }
     await query(`
       INSERT INTO system_settings (key, value)
       VALUES ($1, $2)

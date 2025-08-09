@@ -21,7 +21,7 @@ export async function GET() {
     const withdrawalsResult = await query(`
       SELECT 
         SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END) as paid_withdrawals,
-        SUM(amount) as total_withdrawals
+        SUM(CASE WHEN status IN ('pending', 'completed') THEN amount ELSE 0 END) as total_withdrawals
       FROM payment_transactions
       WHERE type = 'withdrawal'
     `)
@@ -42,6 +42,30 @@ export async function GET() {
       FROM payment_transactions
     `)
 
+    // Obter ganhos de afiliados
+    const affiliateEarningsResult = await query(`
+      SELECT 
+        SUM(CASE WHEN status = 'completed' THEN bonus_amount ELSE 0 END) as affiliate_earnings
+      FROM referral_bonuses
+    `)
+
+    // Obter saques de afiliados
+    const affiliateWithdrawalsResult = await query(`
+      SELECT 
+        SUM(CASE WHEN pt.status = 'completed' THEN pt.amount ELSE 0 END) as affiliate_withdrawals
+      FROM payment_transactions pt
+      JOIN users u ON pt.user_id = u.id
+      WHERE pt.type = 'withdrawal' AND u.referral_earnings > 0
+    `)
+
+    // Obter saques pendentes hoje
+    const pendingTodayResult = await query(`
+      SELECT 
+        SUM(amount) as pending_withdrawals_today
+      FROM payment_transactions
+      WHERE type = 'withdrawal' AND status = 'pending' AND DATE(created_at) = CURRENT_DATE
+    `)
+
     // Formatar os resultados
     const stats = {
       totalDeposits: parseFloat(depositsResult.rows[0].total_deposits || '0'),
@@ -52,6 +76,9 @@ export async function GET() {
       activeUsers: parseInt(usersResult.rows[0].active_users || '0'),
       pendingTransactions: parseInt(transactionsResult.rows[0].pending_transactions || '0'),
       completedTransactions: parseInt(transactionsResult.rows[0].completed_transactions || '0'),
+      affiliateEarnings: parseFloat(affiliateEarningsResult.rows[0].affiliate_earnings || '0'),
+      affiliateWithdrawals: parseFloat(affiliateWithdrawalsResult.rows[0].affiliate_withdrawals || '0'),
+      pendingWithdrawalsToday: parseFloat(pendingTodayResult.rows[0].pending_withdrawals_today || '0'),
     }
 
     return NextResponse.json({

@@ -13,7 +13,7 @@ interface Prize {
 }
 
 interface CosmeticsScratchGamePageProps {
-  rtp: string // Note: Consider changing to number to match ScratchGamePage
+  rtp: string
   onBack: () => void
   user: {
     id: string
@@ -22,12 +22,13 @@ interface CosmeticsScratchGamePageProps {
     phone: string
     avatar?: string
     balance: number
+    influencer?: boolean
   }
   onLogout: () => void
   onNavigate: (page: string) => void
   categoryId: number
-  isPlaying: boolean // ALTERAÇÃO: Adiciona isPlaying
-  resetPlaying: () => void // ALTERAÇÃO: Adiciona resetPlaying
+  isPlaying: boolean
+  resetPlaying: () => void
 }
 
 export function CosmeticsScratchGamePage({
@@ -40,15 +41,16 @@ export function CosmeticsScratchGamePage({
   isPlaying,
   resetPlaying,
 }: CosmeticsScratchGamePageProps) {
+  const effectiveRtp = user.influencer === true ? "85" : rtp
+
   const [gameKey, setGameKey] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [balance, setBalance] = useState(user.balance)
   const [revealedPrizes, setRevealedPrizes] = useState<Prize[]>([])
   const [purchaseId, setPurchaseId] = useState<string | null>(null)
 
-  // ALTERAÇÃO: Função para buscar purchaseId após a compra inicial
   const fetchPurchaseId = async () => {
-    if (!isPlaying || purchaseId) return // Evita chamadas redundantes
+    if (!isPlaying || purchaseId) return
 
     try {
       setIsLoading(true)
@@ -65,11 +67,11 @@ export function CosmeticsScratchGamePage({
         const data = await res.json()
         setPurchaseId(data.transactionId)
         setBalance(prev => prev - 2.5)
-        console.log("fetchPurchaseId, purchaseId:", data.transactionId) // Debug
+        console.log("fetchPurchaseId, purchaseId:", data.transactionId)
       } else {
         const error = await res.json()
         console.error("Erro ao obter purchaseId:", error.error)
-        if (error.error === 'Saldo insuficiente') {
+        if (error.error === "Saldo insuficiente") {
           onNavigate("deposit")
         }
       }
@@ -80,7 +82,6 @@ export function CosmeticsScratchGamePage({
     }
   }
 
-  // ALTERAÇÃO: Chama fetchPurchaseId quando isPlaying for true
   useEffect(() => {
     if (isPlaying) {
       fetchPurchaseId()
@@ -108,32 +109,49 @@ export function CosmeticsScratchGamePage({
 
   const selectWinningPrize = () => {
     let winningProbabilities = [
-      { prize: cosmeticsPrizes[9], weight: 35 },  // Cabo USB-C
-      { prize: cosmeticsPrizes[8], weight: 25 },  // Máscara Facial
-      { prize: cosmeticsPrizes[7], weight: 15 },  // Voucher SHEIN
-      { prize: cosmeticsPrizes[6], weight: 10 },  // Body Splash Kit
-      { prize: cosmeticsPrizes[5], weight: 6 },   // Bolsa Hobo
-      { prize: cosmeticsPrizes[4], weight: 4 },   // Caixa de Beleza
-      { prize: cosmeticsPrizes[3], weight: 2.5 }, // Escova Alisadora
-      { prize: cosmeticsPrizes[2], weight: 1.5 }, // Kit Maquiagem
-      { prize: cosmeticsPrizes[1], weight: 0.8 }, // Kit Kérastase
-      { prize: cosmeticsPrizes[0], weight: 0.2 }, // Perfume Dior
+      { prize: cosmeticsPrizes[9], weight: 35 },
+      { prize: cosmeticsPrizes[8], weight: 25 },
+      { prize: cosmeticsPrizes[7], weight: 15 },
+      { prize: cosmeticsPrizes[6], weight: 10 },
+      { prize: cosmeticsPrizes[5], weight: 6 },
+      { prize: cosmeticsPrizes[4], weight: 4 },
+      { prize: cosmeticsPrizes[3], weight: 2.5 },
+      { prize: cosmeticsPrizes[2], weight: 1.5 },
+      { prize: cosmeticsPrizes[1], weight: 0.8 },
+      { prize: cosmeticsPrizes[0], weight: 0.2 },
     ]
 
-    if (parseFloat(rtp) === 1) {
+    if (user.influencer === true) {
+      winningProbabilities = winningProbabilities.filter(item => {
+        const prizeValue = parseFloat(item.prize.value.replace("R$ ", "").replace(".", "").replace(",", "."));
+        return prizeValue > 50;
+      });
+    }
+
+    if (parseFloat(effectiveRtp) === 1 && user.influencer === false) {
       winningProbabilities = winningProbabilities.filter(item => {
         const prizeValue = parseFloat(item.prize.value.replace("R$ ", "").replace(".", "").replace(",", "."));
         return prizeValue <= 20;
       });
     }
 
+    if (winningProbabilities.length === 0) {
+      return cosmeticsPrizes[cosmeticsPrizes.length - 1]
+    }
+
     const totalWeight = winningProbabilities.reduce((sum, item) => sum + item.weight, 0)
     let random = Math.random() * totalWeight
+    let selectedPrize = winningProbabilities[0].prize
+
     for (const item of winningProbabilities) {
       random -= item.weight
-      if (random <= 0) return item.prize
+      if (random <= 0) {
+        selectedPrize = item.prize
+        break
+      }
     }
-    return cosmeticsPrizes[9] // Default to lowest prize
+
+    return selectedPrize
   }
 
   const getRandomPrize = () => {
@@ -142,48 +160,41 @@ export function CosmeticsScratchGamePage({
   }
 
   const generateRevealedPrizes = () => {
-const isWinner = parseFloat(rtp) !== 1 && Math.random() < parseFloat(rtp) / 100;
+    const isWinner = Math.random() < parseFloat(effectiveRtp) / 100
     const prizesGrid: Prize[] = []
 
     if (isWinner) {
       const winningPrize = selectWinningPrize()
-      
-      // Add 3 winning prizes
+
       for (let i = 0; i < 3; i++) {
         prizesGrid.push({ ...winningPrize, id: `win-${i}`, isWinning: true })
       }
-      
-      // Add 6 random non-winning prizes
+
       for (let i = 0; i < 6; i++) {
         let randomPrize
         do {
           randomPrize = getRandomPrize()
-        } while (randomPrize.id === winningPrize.id) // Ensure different from winning prize
-        
+        } while (randomPrize.id === winningPrize.id)
+
         prizesGrid.push({ ...randomPrize, id: `random-${i}` })
       }
     } else {
-      // Add 9 random non-winning prizes (all different)
       const shuffled = [...cosmeticsPrizes].sort(() => 0.5 - Math.random())
       for (let i = 0; i < 9; i++) {
         prizesGrid.push({ ...shuffled[i % shuffled.length], id: `random-${i}` })
       }
     }
 
-    return prizesGrid.sort(() => Math.random() - 0.5) // Shuffle the array
+    return prizesGrid.sort(() => Math.random() - 0.5)
   }
 
   const handleGameComplete = async (isWinner: boolean, prize?: Prize) => {
-    if (!purchaseId || !isPlaying) return // ALTERAÇÃO: Verifica isPlaying
+    if (!purchaseId || !isPlaying) return
 
     try {
       if (isWinner && prize) {
         const amount = parseFloat(
-          prize.value
-            .replace("R$", "")
-            .trim()
-            .replace(/\./g, "")
-            .replace(",", ".")
+          prize.value.replace("R$", "").trim().replace(/\./g, "").replace(",", ".")
         )
 
         if (isNaN(amount)) {
@@ -235,7 +246,7 @@ const isWinner = parseFloat(rtp) !== 1 && Math.random() < parseFloat(rtp) / 100;
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           categoryId,
-          amount: 2.5
+          amount: 2.5,
         }),
       })
 
@@ -244,11 +255,11 @@ const isWinner = parseFloat(rtp) !== 1 && Math.random() < parseFloat(rtp) / 100;
         setBalance(prev => prev - 2.5)
         setPurchaseId(data.transactionId)
         setGameKey(prev => prev + 1)
-        console.log("handlePlayAgain, purchaseId:", data.transactionId) // Debug
+        console.log("handlePlayAgain, purchaseId:", data.transactionId)
       } else {
         const error = await res.json()
         console.error("Erro ao debitar saldo:", error.error)
-        if (error.error === 'Saldo insuficiente') {
+        if (error.error === "Saldo insuficiente") {
           onNavigate("deposit")
         }
       }
@@ -257,10 +268,9 @@ const isWinner = parseFloat(rtp) !== 1 && Math.random() < parseFloat(rtp) / 100;
     }
   }
 
-  // ALTERAÇÃO: Função para resetar estados ao sair
   const handleBack = () => {
     setPurchaseId(null)
-    resetPlaying() // Chama resetPlaying para resetar isPlaying no componente pai
+    resetPlaying()
     onBack()
   }
 
@@ -269,7 +279,7 @@ const isWinner = parseFloat(rtp) !== 1 && Math.random() < parseFloat(rtp) / 100;
       title="Me mimei"
       subtitle="Raspe e ganhe produtos de beleza incríveis!"
       showBackButton
-      onBack={handleBack} // ALTERAÇÃO: Usa handleBack personalizado
+      onBack={handleBack}
       user={{ ...user, balance }}
       onLogout={onLogout}
       onNavigate={onNavigate}

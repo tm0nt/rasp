@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrendingUp, TrendingDown, Users, CheckCircle, Clock, Loader } from "lucide-react"
+import { TrendingUp, TrendingDown, Users, CheckCircle, Clock, Loader, DollarSign } from "lucide-react"
 
 interface StatsData {
   totalDeposits: number
@@ -13,6 +13,9 @@ interface StatsData {
   activeUsers: number
   pendingTransactions: number
   completedTransactions: number
+  affiliateEarnings: number
+  affiliateWithdrawals: number
+  pendingWithdrawalsToday: number
 }
 
 export function DashboardStatsCards() {
@@ -20,33 +23,34 @@ export function DashboardStatsCards() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        setLoading(true)
-        const response = await fetch('/api/admin/overview')
-        const data = await response.json()
+  const fetchStats = async () => {
+    try {
+      const response = await fetch('/api/admin/overview')
+      const data = await response.json()
 
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to fetch stats')
-        }
-
-        setStats(data.stats)
-      } catch (err) {
-        console.error('Error fetching stats:', err)
-        setError(err instanceof Error ? err.message : 'Unknown error')
-      } finally {
-        setLoading(false)
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch stats')
       }
-    }
 
+      setStats(data.stats)
+    } catch (err) {
+      console.error('Error fetching stats:', err)
+      setError(err instanceof Error ? err.message : 'Unknown error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     fetchStats()
+    const intervalId = setInterval(fetchStats, 5000) // Poll every 5 seconds
+    return () => clearInterval(intervalId)
   }, [])
 
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[...Array(8)].map((_, i) => (
+        {[...Array(11)].map((_, i) => (
           <Card key={i} className="bg-gray-800 border-2 border-gray-700 h-32 flex items-center justify-center">
             <Loader className="animate-spin text-gray-400" />
           </Card>
@@ -70,67 +74,102 @@ export function DashboardStatsCards() {
   const cards = [
     {
       title: "Depósitos Totais",
-      value: `R$ ${stats.totalDeposits.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+      value: stats.totalDeposits,
       icon: TrendingUp,
       color: "text-green-400",
       bgColor: "bg-green-500/10",
       borderColor: "border-green-500/30",
+      isMoney: true,
     },
     {
       title: "Depósitos Pagos",
-      value: `R$ ${stats.paidDeposits.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+      value: stats.paidDeposits,
       icon: CheckCircle,
       color: "text-green-400",
       bgColor: "bg-green-500/10",
       borderColor: "border-green-500/30",
+      isMoney: true,
     },
     {
       title: "Saques Totais",
-      value: `R$ ${stats.totalWithdrawals.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+      value: stats.totalWithdrawals,
       icon: TrendingDown,
       color: "text-red-400",
       bgColor: "bg-red-500/10",
       borderColor: "border-red-500/30",
+      isMoney: true,
     },
     {
       title: "Saques Pagos",
-      value: `R$ ${stats.paidWithdrawals.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+      value: stats.paidWithdrawals,
       icon: CheckCircle,
       color: "text-red-400",
       bgColor: "bg-red-500/10",
       borderColor: "border-red-500/30",
+      isMoney: true,
     },
     {
       title: "Total de Usuários",
-      value: stats.totalUsers.toLocaleString("pt-BR"),
+      value: stats.totalUsers,
       icon: Users,
       color: "text-blue-400",
       bgColor: "bg-blue-500/10",
       borderColor: "border-blue-500/30",
+      isMoney: false,
     },
     {
       title: "Usuários Ativos",
-      value: stats.activeUsers.toLocaleString("pt-BR"),
+      value: stats.activeUsers,
       icon: Users,
       color: "text-blue-400",
       bgColor: "bg-blue-500/10",
       borderColor: "border-blue-500/30",
+      isMoney: false,
     },
     {
       title: "Transações Pendentes",
-      value: stats.pendingTransactions.toLocaleString("pt-BR"),
+      value: stats.pendingTransactions,
       icon: Clock,
       color: "text-yellow-400",
       bgColor: "bg-yellow-500/10",
       borderColor: "border-yellow-500/30",
+      isMoney: false,
     },
     {
       title: "Transações Concluídas",
-      value: stats.completedTransactions.toLocaleString("pt-BR"),
+      value: stats.completedTransactions,
       icon: CheckCircle,
       color: "text-green-400",
       bgColor: "bg-green-500/10",
       borderColor: "border-green-500/30",
+      isMoney: false,
+    },
+    {
+      title: "Ganhos Afiliados",
+      value: stats.affiliateEarnings,
+      icon: DollarSign,
+      color: "text-green-400",
+      bgColor: "bg-green-500/10",
+      borderColor: "border-green-500/30",
+      isMoney: true,
+    },
+    {
+      title: "Saques Afiliados",
+      value: stats.affiliateWithdrawals,
+      icon: TrendingDown,
+      color: "text-red-400",
+      bgColor: "bg-red-500/10",
+      borderColor: "border-red-500/30",
+      isMoney: true,
+    },
+    {
+      title: "Saques Pendentes Hoje",
+      value: stats.pendingWithdrawalsToday,
+      icon: Clock,
+      color: "text-yellow-400",
+      bgColor: "bg-yellow-500/10",
+      borderColor: "border-yellow-500/30",
+      isMoney: true,
     },
   ]
 
@@ -145,14 +184,42 @@ export function DashboardStatsCards() {
 
 interface StatsCardProps {
   title: string
-  value: string
+  value: number
   icon: React.ComponentType<{ className?: string }>
   color: string
   bgColor: string
   borderColor: string
+  isMoney: boolean
 }
 
-function StatsCard({ title, value, icon: Icon, color, bgColor, borderColor }: StatsCardProps) {
+function StatsCard({ title, value, icon: Icon, color, bgColor, borderColor, isMoney }: StatsCardProps) {
+  const [displayValue, setDisplayValue] = useState(0)
+
+  useEffect(() => {
+    let current = 0
+    const target = value
+    const duration = 1000 // 1 second
+    const steps = 50
+    const increment = target / steps
+    const stepTime = duration / steps
+
+    const timer = setInterval(() => {
+      current += increment
+      if (current >= target) {
+        setDisplayValue(target)
+        clearInterval(timer)
+      } else {
+        setDisplayValue(current)
+      }
+    }, stepTime)
+
+    return () => clearInterval(timer)
+  }, [value])
+
+  const formattedValue = isMoney 
+    ? `R$ ${displayValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : displayValue.toLocaleString("pt-BR")
+
   return (
     <Card className={`bg-gray-800 border-2 ${borderColor} ${bgColor}`}>
       <CardHeader className="pb-3">
@@ -162,7 +229,7 @@ function StatsCard({ title, value, icon: Icon, color, bgColor, borderColor }: St
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className={`text-2xl font-bold ${color}`}>{value}</div>
+        <div className={`text-2xl font-bold ${color}`}>{formattedValue}</div>
       </CardContent>
     </Card>
   )

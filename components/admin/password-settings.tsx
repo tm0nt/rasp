@@ -1,14 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Lock } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/contexts/toast-context"
 
 export function PasswordSettings() {
-  const { toast } = useToast()
+  const { showToast } = useToast()
   const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [isOnline, setIsOnline] = useState(true)
   
@@ -18,32 +18,46 @@ export function PasswordSettings() {
     confirmPassword: "",
   })
 
+  // Network status detection
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+    
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
   const handlePasswordChange = async () => {
     if (!isOnline) {
-      toast({
+      showToast({
+        type: "info",
         title: "⚠️ Você está offline",
-        description: "Não é possível alterar a senha sem conexão",
-        variant: "default",
+        message: "Não é possível alterar a senha sem conexão",
         duration: 5000,
       })
       return
     }
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      toast({
+      showToast({
+        type: "error",
         title: "❌ Erro",
-        description: "As senhas nova e de confirmação não coincidem",
-        variant: "destructive",
+        message: "As senhas nova e de confirmação não coincidem",
         duration: 5000,
       })
       return
     }
 
     if (passwordForm.newPassword.length < 8) {
-      toast({
+      showToast({
+        type: "error",
         title: "❌ Erro",
-        description: "A nova senha deve ter pelo menos 8 caracteres",
-        variant: "destructive",
+        message: "A nova senha deve ter pelo menos 8 caracteres",
         duration: 5000,
       })
       return
@@ -69,10 +83,10 @@ export function PasswordSettings() {
         throw new Error(data.error || "Erro ao alterar a senha")
       }
 
-      toast({
+      showToast({
+        type: "success",
         title: "✅ Sucesso",
-        description: "Senha alterada com sucesso",
-        className: "bg-green-600 text-white border-0",
+        message: "Senha alterada com sucesso",
         duration: 3000,
       })
 
@@ -83,10 +97,10 @@ export function PasswordSettings() {
       })
     } catch (error) {
       console.error("Error:", error)
-      toast({
+      showToast({
+        type: "error",
         title: "❌ Erro ao alterar",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive",
+        message: error instanceof Error ? error.message : "Erro desconhecido",
         duration: 5000,
       })
     } finally {

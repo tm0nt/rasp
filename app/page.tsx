@@ -33,7 +33,7 @@ function HeroCarousel() {
     <div className="relative h-[200px] md:h-[300px] lg:h-[400px] w-full group">
       <div className="relative w-full h-full overflow-hidden rounded-lg transition-all duration-500 hover:shadow-2xl hover:shadow-green-500/20">
         <Image
-          src="/images/banner-motorcycle.png"
+          src="/images/banner.png"
           alt="Raspou, achou 3 iguais, Ganhou! Prêmios até R$25.000"
           fill
           className="object-contain object-center transition-transform duration-700 group-hover:scale-105"
@@ -50,6 +50,7 @@ export function RaspouGanhouApp() {
   const [modalTab, setModalTab] = useState<"login" | "register">("login")
   const [isLoaded, setIsLoaded] = useState(false)
   const [rtp, setRtp] = useState<number>(85) // Inicializa com 85 e será sobrescrito pela API
+  const [minWithdrawal, setMinWithdrawal] = useState<number>(10) // Inicializa com 10 e será sobrescrito pela API
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [purchaseLoading, setPurchaseLoading] = useState<number | null>(null)
   const [isPlaying, setIsPlaying] = useState(false) // Estado para indicar que o jogador está no modo "play"
@@ -108,17 +109,33 @@ export function RaspouGanhouApp() {
         const response = await fetch("/api/config/app")
         const data = await response.json()
         const apiRtp = parseFloat(data.data?.rtp_value) || 85.0
+        const apiMinWithdrawal = parseFloat(data.data?.min_withdrawal_amount) || 10
         setRtp(apiRtp)
+        setMinWithdrawal(apiMinWithdrawal)
         console.log("RTP configurado:", apiRtp)
       } catch (error) {
         console.error("Erro ao carregar configurações:", error)
         setRtp(85.0) // Fallback
+        setMinWithdrawal(10) // Fallback
       }
+      setIsLoaded(true)
     }
 
-    setIsLoaded(true)
     loadConfig()
   }, [])
+
+  useEffect(() => {
+    if (isLoaded) {
+      if (isAuthenticated && user && currentPage === "home" && user.balance === 0) {
+        navigateTo("deposit")
+      } else if (!isAuthenticated && !isModalOpen) {
+        setIsModalOpen(true)
+        setModalTab("login")
+      } else if (isAuthenticated && isModalOpen) {
+        setIsModalOpen(false)
+      }
+    }
+  }, [isAuthenticated, user, currentPage, navigateTo, isLoaded, isModalOpen])
 
   const [activeTab, setActiveTab] = useState("destaque")
   const tabs = [
@@ -224,7 +241,7 @@ export function RaspouGanhouApp() {
   }
 
   if (currentPage === "withdraw" && isAuthenticated && user) {
-    return <WithdrawPage onBack={goBack} user={user} onLogout={logout} onNavigate={handleNavigate} />
+    return <WithdrawPage onBack={goBack} user={user} onLogout={logout} onNavigate={handleNavigate} minWithdrawal={minWithdrawal} />
   }
 
   if (currentPage === "bonuses" && isAuthenticated && user) {

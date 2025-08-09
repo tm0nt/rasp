@@ -17,30 +17,42 @@ export interface IUser {
 
 export function NewUsersCard() {
   const [users, setUsers] = useState<IUser[]>([])
+  const [newUserIds, setNewUserIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchRecentUsers = async () => {
-      try {
-        setLoading(true)
-        const response = await fetch('/api/admin/users/recent?limit=5')
-        const data = await response.json()
+  const fetchRecentUsers = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/admin/users/recent?limit=5')
+      const data = await response.json()
 
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to fetch recent users')
-        }
-
-        setUsers(data.users)
-      } catch (err) {
-        console.error('Error fetching users:', err)
-        setError(err instanceof Error ? err.message : 'Unknown error')
-      } finally {
-        setLoading(false)
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch recent users')
       }
-    }
 
+      const prevUserIds = users.map(u => u.id)
+      const newOnes = data.users.filter((u: IUser) => !prevUserIds.includes(u.id)).map((u: IUser) => u.id)
+
+      if (newOnes.length > 0) {
+        setNewUserIds(newOnes)
+        setTimeout(() => setNewUserIds([]), 3000)
+      }
+
+      setUsers(data.users)
+    } catch (err) {
+      console.error('Error fetching users:', err)
+      setError(err instanceof Error ? err.message : 'Unknown error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     fetchRecentUsers()
+
+    const interval = setInterval(fetchRecentUsers, 5000)
+    return () => clearInterval(interval)
   }, [])
 
   if (loading) {
@@ -77,7 +89,7 @@ export function NewUsersCard() {
       <CardContent>
         <div className="space-y-3">
           {users.map((user) => (
-            <UserItem key={user.id} user={user} />
+            <UserItem key={user.id} user={user} isNew={newUserIds.includes(user.id)} />
           ))}
           {users.length === 0 && (
             <p className="text-gray-400 text-center py-4">Nenhum usuário recente</p>
@@ -88,7 +100,7 @@ export function NewUsersCard() {
   )
 }
 
-function UserItem({ user }: { user: IUser }) {
+function UserItem({ user, isNew }: { user: IUser; isNew: boolean }) {
   const getRelativeDate = (dateString: string): string => {
     const date = new Date(dateString)
     const today = new Date()
@@ -118,7 +130,7 @@ function UserItem({ user }: { user: IUser }) {
   }
 
   return (
-    <div className="flex items-center justify-between p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors">
+    <div className={`flex items-center justify-between p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors ${isNew ? 'bg-yellow-900/50 animate-pulse' : ''}`}>
       <div>
         <div className="flex items-center gap-2">
           <p className="text-white font-medium">{user.name}</p>

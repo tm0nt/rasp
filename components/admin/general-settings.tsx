@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Globe, Upload, Save, ImageIcon, Link, FileText } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/contexts/toast-context"  // Alterado para usar o custom toast context
 
 export function GeneralSettings() {
-  const { toast } = useToast()
+  const { showToast } = useToast()  // Usando showToast do context custom
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isOnline, setIsOnline] = useState(true)
@@ -22,6 +22,7 @@ export function GeneralSettings() {
     siteDescription: "",
     logo: "",
     favicon: "",
+    banner: "",
     supportEmail: "",
     supportPhone: "",
   })
@@ -35,6 +36,8 @@ export function GeneralSettings() {
   })
 
   const [rtpValue, setRtpValue] = useState(0)
+  const [minSpinsForWithdrawal, setMinSpinsForWithdrawal] = useState(0)
+  const [minWithdrawal, setMinWithdrawal] = useState(0)
   const [maintenanceMode, setMaintenanceMode] = useState(false)
 
   // Network status detection
@@ -55,10 +58,10 @@ export function GeneralSettings() {
   useEffect(() => {
     const loadSettings = async () => {
       if (!isOnline) {
-        toast({
+        showToast({
+          type: "info",
           title: "⚠️ Você está offline",
-          description: "Algumas funcionalidades podem não estar disponíveis",
-          variant: "default",
+          message: "Algumas funcionalidades podem não estar disponíveis",
           duration: 5000,
         })
         setIsLoading(false)
@@ -75,20 +78,22 @@ export function GeneralSettings() {
           setSeoConfig(data.data.seoConfig)
           setMaintenanceMode(data.data.maintenanceMode)
           setRtpValue(parseInt(data.data.rtpValue) || 0)
+          setMinSpinsForWithdrawal(parseInt(data.data.minSpinsForWithdrawal) || 0)
+          setMinWithdrawal(parseFloat(data.data.minWithdrawal) || 0)
         } else {
-          toast({
+          showToast({
+            type: "error",
             title: "❌ Erro ao carregar",
-            description: data.error || "Falha ao carregar configurações",
-            variant: "destructive",
+            message: data.error || "Falha ao carregar configurações",
             duration: 5000,
           })
         }
       } catch (error) {
         console.error("Error:", error)
-        toast({
+        showToast({
+          type: "error",
           title: "❌ Erro de conexão",
-          description: "Falha ao conectar ao servidor",
-          variant: "destructive",
+          message: "Falha ao conectar ao servidor",
           duration: 5000,
         })
       } finally {
@@ -97,7 +102,7 @@ export function GeneralSettings() {
     }
     
     loadSettings()
-  }, [toast, isOnline])
+  }, [showToast, isOnline])
 
   // Handle RTP value change with validation
   const handleRtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,23 +119,69 @@ export function GeneralSettings() {
       if (numValue >= 0 && numValue <= 100) {
         setRtpValue(numValue);
       } else {
-        toast({
+        showToast({
+          type: "error",
           title: "Valor inválido",
-          description: "O RTP deve estar entre 0 e 100",
-          variant: "destructive",
+          message: "O RTP deve estar entre 0 e 100",
           duration: 3000,
         })
       }
     }
   };
 
+  // Handle min spins change with validation
+  const handleMinSpinsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    
+    if (value === '') {
+      setMinSpinsForWithdrawal(0);
+      return;
+    }
+    
+    const numValue = parseInt(value);
+    
+    if (!isNaN(numValue) && numValue >= 0) {
+      setMinSpinsForWithdrawal(numValue);
+    } else {
+      showToast({
+        type: "error",
+        title: "Valor inválido",
+        message: "O mínimo de giros deve ser maior ou igual a 0",
+        duration: 3000,
+      })
+    }
+  };
+
+  // Handle min withdrawal change with validation
+  const handleMinWithdrawalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    
+    if (value === '') {
+      setMinWithdrawal(0);
+      return;
+    }
+    
+    const numValue = parseFloat(value);
+    
+    if (!isNaN(numValue) && numValue >= 0) {
+      setMinWithdrawal(numValue);
+    } else {
+      showToast({
+        type: "error",
+        title: "Valor inválido",
+        message: "O saque mínimo deve ser maior ou igual a 0",
+        duration: 3000,
+      })
+    }
+  };
+
   // Save all configurations
   const handleSaveConfig = async () => {
     if (!isOnline) {
-      toast({
+      showToast({
+        type: "info",
         title: "⚠️ Você está offline",
-        description: "Não é possível salvar sem conexão",
-        variant: "default",
+        message: "Não é possível salvar sem conexão",
         duration: 5000,
       })
       return
@@ -149,7 +200,9 @@ export function GeneralSettings() {
             siteConfig,
             seoConfig,
             maintenanceMode,
-            rtpValue
+            rtpValue,
+            minSpinsForWithdrawal,
+            minWithdrawal
           }
         })
       })
@@ -160,18 +213,18 @@ export function GeneralSettings() {
         throw new Error(data.error || "Erro ao salvar")
       }
 
-      toast({
+      showToast({
+        type: "success",
         title: "✅ Sucesso",
-        description: "Configurações salvas com sucesso",
-        className: "bg-green-600 text-white border-0",
+        message: "Configurações salvas com sucesso",
         duration: 3000,
       })
     } catch (error) {
       console.error("Error:", error)
-      toast({
+      showToast({
+        type: "error",
         title: "❌ Erro ao salvar",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive",
+        message: error instanceof Error ? error.message : "Erro desconhecido",
         duration: 5000,
       })
     } finally {
@@ -180,15 +233,15 @@ export function GeneralSettings() {
   }
 
   // Unified file upload handler for mobile
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'favicon') => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'favicon' | 'banner') => {
     const file = event.target.files?.[0]
     if (!file) return
 
     if (!isOnline) {
-      toast({
+      showToast({
+        type: "info",
         title: "⚠️ Você está offline",
-        description: "Não é possível fazer upload sem conexão",
-        variant: "default",
+        message: "Não é possível fazer upload sem conexão",
         duration: 5000,
       })
       return
@@ -212,18 +265,18 @@ export function GeneralSettings() {
       }
 
       setSiteConfig(prev => ({ ...prev, [type]: data.fileUrl }))
-      toast({
-        title: `✅ ${type === 'logo' ? 'Logo' : 'Favicon'} atualizado`,
-        description: `O ${type === 'logo' ? 'logo' : 'favicon'} foi atualizado com sucesso!`,
-        className: "bg-green-600 text-white border-0",
+      showToast({
+        type: "success",
+        title: `✅ ${type.charAt(0).toUpperCase() + type.slice(1)} atualizado`,
+        message: `O ${type} foi atualizado com sucesso!`,
         duration: 3000,
       })
     } catch (error) {
       console.error(`Error uploading ${type}:`, error)
-      toast({
-        title: `❌ Falha no upload ${type === 'logo' ? 'do logo' : 'do favicon'}`,
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive",
+      showToast({
+        type: "error",
+        title: `❌ Falha no upload do ${type}`,
+        message: error instanceof Error ? error.message : "Erro desconhecido",
         duration: 5000,
       })
     }
@@ -252,7 +305,7 @@ export function GeneralSettings() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-gray-300 text-sm font-medium mb-2">
                 Valor do RTP (0-100)
@@ -268,6 +321,39 @@ export function GeneralSettings() {
               />
               <p className="text-xs text-gray-400 mt-1">
                 O RTP (Return to Player) determina a porcentagem de retorno aos jogadores.
+              </p>
+            </div>
+            <div>
+              <label className="block text-gray-300 text-sm font-medium mb-2">
+                Mínimo de giros para saque
+              </label>
+              <Input
+                type="number"
+                value={minSpinsForWithdrawal || ''}
+                onChange={handleMinSpinsChange}
+                min="0"
+                className="bg-gray-700 border-gray-600 text-white"
+                inputMode="numeric"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Número mínimo de giros necessários para permitir saque.
+              </p>
+            </div>
+            <div>
+              <label className="block text-gray-300 text-sm font-medium mb-2">
+                Saque mínimo
+              </label>
+              <Input
+                type="number"
+                value={minWithdrawal || ''}
+                onChange={handleMinWithdrawalChange}
+                min="0"
+                step="0.01"
+                className="bg-gray-700 border-gray-600 text-white"
+                inputMode="decimal"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Valor mínimo permitido para saque (em R$).
               </p>
             </div>
           </div>
@@ -340,34 +426,34 @@ export function GeneralSettings() {
         </CardContent>
       </Card>
 
-      {/* Logo and Favicon Upload */}
+      {/* Logo, Favicon, and Banner Upload */}
       <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <ImageIcon className="w-5 h-5" />
-            Logo e Favicon
+            Logo, Favicon e Banner
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {(['logo', 'favicon'] as const).map((type) => (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {(['logo', 'favicon', 'banner'] as const).map((type) => (
               <div key={type}>
                 <label className="block text-gray-300 text-sm font-medium mb-2">
-                  {type === 'logo' ? 'Logo do Site' : 'Favicon (32x32px)'}
+                  {type === 'logo' ? 'Logo do Site' : type === 'favicon' ? 'Favicon (32x32px)' : 'Banner do Site'}
                 </label>
                 <div className="space-y-4">
                   <div className="flex items-center justify-center w-full h-32 bg-gray-700 rounded-lg border-2 border-dashed border-gray-600">
                     {siteConfig[type] ? (
                       <img
                         src={siteConfig[type]}
-                        alt={type === 'logo' ? 'Logo atual' : 'Favicon atual'}
-                        className={type === 'logo' ? "max-h-28 max-w-full object-contain" : "w-8 h-8 object-contain"}
+                        alt={`${type.charAt(0).toUpperCase() + type.slice(1)} atual`}
+                        className={type === 'favicon' ? "w-8 h-8 object-contain" : "max-h-28 max-w-full object-contain"}
                       />
                     ) : (
                       <div className="text-center">
                         <ImageIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                         <p className="text-gray-400 text-sm">
-                          {type === 'logo' ? 'Nenhum logo' : 'Nenhum favicon'}
+                          Nenhum {type}
                         </p>
                       </div>
                     )}

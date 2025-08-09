@@ -22,12 +22,13 @@ interface VehiclesScratchGamePageProps {
     phone: string
     avatar?: string
     balance: number
+    influencer?: boolean
   }
   onLogout: () => void
   onNavigate: (page: string) => void
   categoryId: number
-  isPlaying: boolean // ALTERAÇÃO: Adiciona isPlaying
-  resetPlaying: () => void // ALTERAÇÃO: Adiciona resetPlaying
+  isPlaying: boolean
+  resetPlaying: () => void
 }
 
 export function VehiclesScratchGamePage({
@@ -40,15 +41,16 @@ export function VehiclesScratchGamePage({
   isPlaying,
   resetPlaying,
 }: VehiclesScratchGamePageProps) {
+  const effectiveRtp = user.influencer === true ? "85" : rtp
+
   const [gameKey, setGameKey] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [balance, setBalance] = useState(user.balance)
   const [revealedPrizes, setRevealedPrizes] = useState<Prize[]>([])
   const [purchaseId, setPurchaseId] = useState<string | null>(null)
 
-  // ALTERAÇÃO: Função para buscar purchaseId após a compra inicial
   const fetchPurchaseId = async () => {
-    if (!isPlaying || purchaseId) return // Evita chamadas redundantes
+    if (!isPlaying || purchaseId) return
 
     try {
       setIsLoading(true)
@@ -65,7 +67,7 @@ export function VehiclesScratchGamePage({
         const data = await res.json()
         setPurchaseId(data.transactionId)
         setBalance(prev => prev - 5.0)
-        console.log("fetchPurchaseId, purchaseId:", data.transactionId) // Debug
+        console.log("fetchPurchaseId, purchaseId:", data.transactionId)
       } else {
         const error = await res.json()
         console.error("Erro ao obter purchaseId:", error.error)
@@ -80,7 +82,6 @@ export function VehiclesScratchGamePage({
     }
   }
 
-  // ALTERAÇÃO: Chama fetchPurchaseId quando isPlaying for true
   useEffect(() => {
     if (isPlaying) {
       fetchPurchaseId()
@@ -108,32 +109,49 @@ export function VehiclesScratchGamePage({
 
   const selectWinningPrize = () => {
     let winningProbabilities = [
-      { prize: vehiclesPrizes[9], weight: 30 },  // Odorizante
-      { prize: vehiclesPrizes[8], weight: 25 },  // Suporte
-      { prize: vehiclesPrizes[7], weight: 15 },  // Patins
-      { prize: vehiclesPrizes[6], weight: 10 },  // Capacete
-      { prize: vehiclesPrizes[5], weight: 8 },   // Jaqueta
-      { prize: vehiclesPrizes[4], weight: 5 },   // Hoverboard
-      { prize: vehiclesPrizes[3], weight: 3 },   // Patinete
-      { prize: vehiclesPrizes[2], weight: 2 },   // Bicicleta
-      { prize: vehiclesPrizes[1], weight: 1.5 }, // Honda Pop
-      { prize: vehiclesPrizes[0], weight: 0.5 }, // Honda CG
+      { prize: vehiclesPrizes[9], weight: 30 },
+      { prize: vehiclesPrizes[8], weight: 25 },
+      { prize: vehiclesPrizes[7], weight: 15 },
+      { prize: vehiclesPrizes[6], weight: 10 },
+      { prize: vehiclesPrizes[5], weight: 8 },
+      { prize: vehiclesPrizes[4], weight: 5 },
+      { prize: vehiclesPrizes[3], weight: 3 },
+      { prize: vehiclesPrizes[2], weight: 2 },
+      { prize: vehiclesPrizes[1], weight: 1.5 },
+      { prize: vehiclesPrizes[0], weight: 0.5 },
     ]
 
-    if (parseFloat(rtp) === 1) {
+    if (user.influencer === true) {
       winningProbabilities = winningProbabilities.filter(item => {
         const prizeValue = parseFloat(item.prize.value.replace("R$ ", "").replace(".", "").replace(",", "."));
-        return prizeValue <= 20; // Limite de R$1.000,00 para RTP=1 (ajustável conforme necessidade)
+        return prizeValue > 50;
       });
+    }
+
+    if (parseFloat(effectiveRtp) === 1 && user.influencer === false) {
+      winningProbabilities = winningProbabilities.filter(item => {
+        const prizeValue = parseFloat(item.prize.value.replace("R$ ", "").replace(".", "").replace(",", "."));
+        return prizeValue <= 20;
+      });
+    }
+
+    if (winningProbabilities.length === 0) {
+      return vehiclesPrizes[vehiclesPrizes.length - 1]
     }
 
     const totalWeight = winningProbabilities.reduce((sum, item) => sum + item.weight, 0)
     let random = Math.random() * totalWeight
+    let selectedPrize = winningProbabilities[0].prize
+
     for (const item of winningProbabilities) {
       random -= item.weight
-      if (random <= 0) return item.prize
+      if (random <= 0) {
+        selectedPrize = item.prize
+        break
+      }
     }
-    return vehiclesPrizes[9] // Default to lowest prize
+
+    return selectedPrize
   }
 
   const getRandomPrize = () => {
@@ -142,39 +160,36 @@ export function VehiclesScratchGamePage({
   }
 
   const generateRevealedPrizes = () => {
-const isWinner = parseFloat(rtp) !== 1 && Math.random() < parseFloat(rtp) / 100;
+    const isWinner = Math.random() < parseFloat(effectiveRtp) / 100
     const prizesGrid: Prize[] = []
 
     if (isWinner) {
       const winningPrize = selectWinningPrize()
-      
-      // Add 3 winning prizes
+
       for (let i = 0; i < 3; i++) {
         prizesGrid.push({ ...winningPrize, id: `win-${i}`, isWinning: true })
       }
-      
-      // Add 6 random non-winning prizes
+
       for (let i = 0; i < 6; i++) {
         let randomPrize
         do {
           randomPrize = getRandomPrize()
-        } while (randomPrize.id === winningPrize.id) // Ensure different from winning prize
-        
+        } while (randomPrize.id === winningPrize.id)
+
         prizesGrid.push({ ...randomPrize, id: `random-${i}` })
       }
     } else {
-      // Add 9 random non-winning prizes (all different)
       const shuffled = [...vehiclesPrizes].sort(() => 0.5 - Math.random())
       for (let i = 0; i < 9; i++) {
         prizesGrid.push({ ...shuffled[i % shuffled.length], id: `random-${i}` })
       }
     }
 
-    return prizesGrid.sort(() => Math.random() - 0.5) // Shuffle the array
+    return prizesGrid.sort(() => Math.random() - 0.5)
   }
 
   const handleGameComplete = async (isWinner: boolean, prize?: Prize) => {
-    if (!purchaseId || !isPlaying) return // ALTERAÇÃO: Verifica isPlaying
+    if (!purchaseId || !isPlaying) return
 
     try {
       if (isWinner && prize) {
@@ -235,7 +250,7 @@ const isWinner = parseFloat(rtp) !== 1 && Math.random() < parseFloat(rtp) / 100;
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           categoryId,
-          amount: 5.0
+          amount: 5.0,
         }),
       })
 
@@ -244,7 +259,7 @@ const isWinner = parseFloat(rtp) !== 1 && Math.random() < parseFloat(rtp) / 100;
         setBalance(prev => prev - 5.0)
         setPurchaseId(data.transactionId)
         setGameKey(prev => prev + 1)
-        console.log("handlePlayAgain, purchaseId:", data.transactionId) // Debug
+        console.log("handlePlayAgain, purchaseId:", data.transactionId)
       } else {
         const error = await res.json()
         console.error("Erro ao debitar saldo:", error.error)
@@ -257,10 +272,9 @@ const isWinner = parseFloat(rtp) !== 1 && Math.random() < parseFloat(rtp) / 100;
     }
   }
 
-  // ALTERAÇÃO: Função para resetar estados ao sair
   const handleBack = () => {
     setPurchaseId(null)
-    resetPlaying() // Chama resetPlaying para resetar isPlaying no componente pai
+    resetPlaying()
     onBack()
   }
 
@@ -269,7 +283,7 @@ const isWinner = parseFloat(rtp) !== 1 && Math.random() < parseFloat(rtp) / 100;
       title="Super Prêmios 🏍️"
       subtitle="Cansado de ficar a pé? Essa é sua chance!"
       showBackButton
-      onBack={handleBack} // ALTERAÇÃO: Usa handleBack personalizado
+      onBack={handleBack}
       user={{ ...user, balance }}
       onLogout={onLogout}
       onNavigate={onNavigate}

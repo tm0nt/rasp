@@ -5,8 +5,8 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { query } from '@/lib/db'
 import { z } from 'zod'
 
-const withdrawalSchema = z.object({
-  amount: z.number().min(10, 'O valor mínimo para saque é R$ 10,00').max(5000, 'O valor máximo para saque é R$ 5.000,00'),
+const withdrawalSchema = (minWithdrawal: number) => z.object({
+  amount: z.number().min(minWithdrawal, `O valor mínimo para saque é R$ ${minWithdrawal.toFixed(2)}`).max(5000, 'O valor máximo para saque é R$ 5.000,00'),
   pixKey: z.string().min(5, 'Chave PIX inválida'),
   pixKeyType: z.enum(['cpf', 'email', 'phone', 'random']),
   withdrawType: z.enum(['balance', 'referral']),
@@ -20,9 +20,40 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Validar dados da requisição
+    // Obter configurações mínimas
+    const settingsResult = await query(`
+      SELECT key, value 
+      FROM system_settings 
+      WHERE key IN ('min_spins_withdrawal', 'min_withdrawal_amount')
+    `)
+    
+    const settings = settingsResult.rows.reduce((acc: Record<string, string>, row: any) => {
+      acc[row.key] = row.value
+      return acc
+    }, {})
+
+    const minSpins = parseInt(settings.min_spins_withdrawal || '10')
+    const minWithdrawal = parseFloat(settings.min_withdrawal_amount || '10.00')
+
+    // Verificar número de spins (bets)
+    const betsResult = await query(`
+      SELECT COUNT(*) as total_bets
+      FROM payment_transactions
+      WHERE user_id = $1 AND type = 'bet'
+    `, [session.user.id])
+    
+    const totalBets = parseInt(betsResult.rows[0].total_bets || '0')
+    
+    if (totalBets < minSpins) {
+      return NextResponse.json(
+        { error: `Você precisa de pelo menos ${minSpins} giros para solicitar um saque. Você tem ${totalBets} giros.` },
+        { status: 400 }
+      )
+    }
+
+    // Validar dados da requisição com schema dinâmico
     const body = await request.json()
-    const validation = withdrawalSchema.safeParse(body)
+    const validation = withdrawalSchema(minWithdrawal).safeParse(body)
     
     if (!validation.success) {
       return NextResponse.json(
