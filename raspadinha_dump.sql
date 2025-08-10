@@ -1238,11 +1238,12 @@ COPY public.system_settings (id, key, value, description, type, updated_at) FROM
 5	max_withdrawal_daily	1000.00	Valor máximo de saque diário	number	2025-07-22 02:20:04.412826
 6	pix_enabled	true	PIX habilitado	boolean	2025-07-22 02:20:04.412826
 7	credit_card_enabled	true	Cartão de crédito habilitado	boolean	2025-07-22 02:20:04.412826
+430	site_modal_promo_banner	/images/modal-promo-banner.png	\N	string	2025-08-10 09:35:46.432705
+23	site_favicon	/images/favicon.png	\N	string	2025-08-10 09:42:14.364551
 1	site_name	Raspou Ganhou	Nome do site	string	2025-08-09 14:40:54.022759
 20	site_url	raspadinhagg.fun	\N	string	2025-08-09 14:40:54.022759
 21	site_description	Descubra a diversão das raspadinhas online! Jogue a qualquer hora e em qualquer lugar para ganhar prêmios incríveis. Plataforma segura, fácil de usar e com diversos jogos de raspadinha para todos os gostos. Comece sua sorte agora!	\N	string	2025-08-09 14:40:54.022759
 22	site_logo	/images/logo.png	\N	string	2025-08-09 14:40:54.022759
-23	site_favicon		\N	string	2025-08-09 14:40:54.022759
 9	support_email	suporte@raspouganhou.com	Email de suporte	string	2025-08-09 14:40:54.022759
 10	support_phone	(11) 99999-9999	Telefone de suporte	string	2025-08-09 14:40:54.022759
 26	seo_meta_title	Raspou Ganhou	\N	string	2025-08-09 14:40:54.022759
@@ -1254,8 +1255,10 @@ COPY public.system_settings (id, key, value, description, type, updated_at) FROM
 124	rtp_value	1	\N	string	2025-08-09 14:40:54.022759
 349	min_spins_withdrawal	100000	\N	string	2025-08-09 14:40:54.022759
 350	min_withdrawal_amount	100	\N	string	2025-08-09 14:40:54.022759
+334	site_banner	/images/banner.png	\N	string	2025-08-10 09:33:45.923619
+429	site_mobile_login_banner	/images/mobile-login-banner.png	\N	string	2025-08-10 09:34:25.636938
+431	site_mobile_register_banner	/images/mobile-register-banner.png	\N	string	2025-08-10 09:35:06.282501
 318	withdrawal_fee	10	\N	string	2025-08-01 18:38:55.759832
-334	site_banner	/images/banner.png	\N	string	2025-08-09 02:28:57.801617
 11	affiliate_min_deposit	20.00	\N	string	2025-08-09 04:58:38.991773
 12	affiliate_cpa_value	10	\N	string	2025-08-09 04:58:38.991773
 \.
@@ -1282,6 +1285,8 @@ COPY public.user_analytics (id, user_id, event_type, event_data, ip_address, use
 4	\N	auth_error	{"email": "tassiog@gmail.com", "error": "Este email já está cadastrado", "authType": "register", "timestamp": "2025-07-23T20:56:41.682Z", "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}	::1	Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36	2025-07-23 17:56:42.55
 5	\N	user_registered	{"timestamp": "2025-07-23T20:56:44.095Z", "referralCode": null, "registrationMethod": "email"}	::1	Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36	2025-07-23 17:56:44.234
 6	\N	user_registered	{"timestamp": "2025-07-23T22:47:11.715Z", "referralCode": null, "registrationMethod": "email"}	::1	Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36	2025-07-23 19:47:12.213
+201	a934f70f-af83-408c-a46e-b7b88bcbb5b5	logout	{}	\N	\N	2025-08-09 12:20:20.804
+202	a934f70f-af83-408c-a46e-b7b88bcbb5b5	user_logged_out	{"timestamp": "2025-08-09T15:20:20.952Z"}	::1	Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36	2025-08-09 12:20:22.509
 33	\N	auth_error	{"email": "", "error": "Email e senha são obrigatórios", "authType": "login", "timestamp": "2025-07-24T03:59:53.098Z", "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}	::1	Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36	2025-07-24 00:59:53.12
 34	\N	auth_error	{"email": "11939342524", "error": "Credenciais incorretas", "authType": "login", "timestamp": "2025-07-24T04:02:58.620Z", "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}	::1	Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36	2025-07-24 01:02:59.019
 35	\N	auth_error	{"email": "11939342524", "error": "Credenciais incorretas", "authType": "login", "timestamp": "2025-07-24T04:03:09.188Z", "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"}	::1	Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36	2025-07-24 01:03:09.227
@@ -1751,7 +1756,7 @@ SELECT pg_catalog.setval('public.refresh_tokens_id_seq', 1, false);
 -- Name: system_settings_id_seq; Type: SEQUENCE SET; Schema: public; Owner: brx
 --
 
-SELECT pg_catalog.setval('public.system_settings_id_seq', 427, true);
+SELECT pg_catalog.setval('public.system_settings_id_seq', 434, true);
 
 
 --

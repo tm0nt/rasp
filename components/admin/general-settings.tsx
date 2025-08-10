@@ -23,6 +23,9 @@ export function GeneralSettings() {
     logo: "",
     favicon: "",
     banner: "",
+    "mobile-login-banner": "",
+    "mobile-register-banner": "",
+    "modal-promo-banner": "",
     supportEmail: "",
     supportPhone: "",
   })
@@ -233,7 +236,7 @@ export function GeneralSettings() {
   }
 
   // Unified file upload handler for mobile
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'favicon' | 'banner') => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'favicon' | 'banner' | 'mobile-login-banner' | 'mobile-register-banner' | 'modal-promo-banner') => {
     const file = event.target.files?.[0]
     if (!file) return
 
@@ -288,6 +291,15 @@ export function GeneralSettings() {
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-500"></div>
       </div>
     )
+  }
+
+  const labels: Record<string, string> = {
+    logo: 'Logo do Site',
+    favicon: 'Favicon (32x32px)',
+    banner: 'Banner do Site',
+    'mobile-login-banner': 'Banner Mobile Login',
+    'mobile-register-banner': 'Banner Mobile Registro',
+    'modal-promo-banner': 'Banner Modal Promo',
   }
 
   return (
@@ -436,10 +448,10 @@ export function GeneralSettings() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {(['logo', 'favicon', 'banner'] as const).map((type) => (
+            {(['logo', 'favicon', 'banner', 'mobile-login-banner', 'mobile-register-banner', 'modal-promo-banner'] as const).map((type) => (
               <div key={type}>
                 <label className="block text-gray-300 text-sm font-medium mb-2">
-                  {type === 'logo' ? 'Logo do Site' : type === 'favicon' ? 'Favicon (32x32px)' : 'Banner do Site'}
+                  {labels[type]}
                 </label>
                 <div className="space-y-4">
                   <div className="flex items-center justify-center w-full h-32 bg-gray-700 rounded-lg border-2 border-dashed border-gray-600">

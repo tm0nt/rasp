@@ -40,7 +40,8 @@ export async function GET() {
         'site_name', 'site_url', 'site_description', 'site_logo', 'site_favicon',
         'support_email', 'support_phone', 'seo_meta_title', 'seo_meta_description',
         'seo_meta_keywords', 'seo_google_analytics', 'seo_facebook_pixel', 'maintenance_mode', 
-        'rtp_value', 'min_spins_withdrawal', 'min_withdrawal_amount'
+        'rtp_value', 'min_spins_withdrawal', 'min_withdrawal_amount',
+        'site_banner', 'site_mobile_login_banner', 'site_modal_promo_banner', 'site_mobile_register_banner'
       )
     `)
 
@@ -67,6 +68,10 @@ export async function GET() {
           favicon: config.site_favicon || '',
           supportEmail: config.support_email || '',
           supportPhone: config.support_phone || '',
+          banner: config.site_banner || '',
+          "mobile-login-banner": config.site_mobile_login_banner || '',
+          "modal-promo-banner": config.site_modal_promo_banner || '',
+          "mobile-register-banner": config.site_mobile_register_banner || '',
         },
         seoConfig: {
           metaTitle: config.seo_meta_title || '',

@@ -13,6 +13,18 @@ const UPLOAD_DIR = path.join(process.cwd(), 'public/images')
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/svg+xml', 'image/x-icon']
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 
+const allowedTypes = ['logo', 'favicon', 'banner', 'mobile-login-banner', 'mobile-register-banner', 'modal-promo-banner'] as const;
+type AllowedType = typeof allowedTypes[number];
+
+const settingKeys: Record<AllowedType, string> = {
+  'logo': 'site_logo',
+  'favicon': 'site_favicon',
+  'banner': 'site_banner',
+  'mobile-login-banner': 'site_mobile_login_banner',
+  'mobile-register-banner': 'site_mobile_register_banner',
+  'modal-promo-banner': 'site_modal_promo_banner',
+};
+
 // Certifique-se que o diretório de upload existe
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true })
@@ -50,7 +62,7 @@ export async function POST(request: Request) {
     }
 
     // Verificar tipo de upload permitido
-    if (!['logo', 'favicon', 'banner'].includes(type)) {
+    if (!allowedTypes.includes(type)) {
       return NextResponse.json(
         { error: 'Tipo de upload inválido' },
         { status: 400 }
@@ -60,25 +72,30 @@ export async function POST(request: Request) {
     // Ler o buffer do arquivo
     const buffer = Buffer.from(await file.arrayBuffer())
     
-    // Nome fixo para o arquivo, sempre .png
-    const filename = `${type}.png`
+    // Determinar extensão e se é ICO
+    let extension = '.png'
+    let isIco = false
+    if (type === 'favicon' && file.type === 'image/x-icon') {
+      extension = '.ico'
+      isIco = true
+    }
+    
+    // Nome fixo para o arquivo
+    const filename = `${type}${extension}`
     const filepath = path.join(UPLOAD_DIR, filename)
     
-    // Converter para PNG e salvar o arquivo
-    await sharp(buffer).png().toFile(filepath)
+    // Salvar o arquivo
+    if (isIco) {
+      fs.writeFileSync(filepath, buffer)
+    } else {
+      await sharp(buffer).png().toFile(filepath)
+    }
 
     // URL pública do arquivo
     const fileUrl = `/images/${filename}`
 
     // Atualizar no banco de dados
-    let settingKey: string;
-    if (type === 'logo') {
-      settingKey = 'site_logo';
-    } else if (type === 'favicon') {
-      settingKey = 'site_favicon';
-    } else {
-      settingKey = 'site_banner';
-    }
+    const settingKey = settingKeys[type];
     await query(`
       INSERT INTO system_settings (key, value)
       VALUES ($1, $2)
